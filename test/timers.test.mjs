@@ -10,6 +10,7 @@ import { serializeBlob } from '../lib/blob.js'
 function fakeCtx(config) {
   const state = { provided: {}, effects: [], cleanups: [], routes: [] }
   const ctx = {
+    on(name, listener) { state.listener = listener; state.event = name; return () => { state.listener = undefined } },
     log: { warn() {}, error() {}, info() {} },
     emit() {},
     provide(name, value) { state.provided[name] = value; return () => { delete state.provided[name] } },

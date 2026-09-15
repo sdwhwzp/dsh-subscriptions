@@ -18,6 +18,7 @@ function fakeCtx() {
     emitted: [],
   }
   const ctx = {
+    on(name, listener) { state.listener = listener; state.event = name; return () => { state.listener = undefined } },
     log: { warn() {}, error() {}, info() {} },
     emit(name, payload) { state.emitted.push({ name, payload }) },
     provide(name, value) {
@@ -114,5 +115,22 @@ test('config defaults are applied when apply is called with an empty object', as
     assert.ok(state.provided.subscriptions)
   } finally {
     for (const c of state.cleanups) c()
+  }
+})
+
+
+test('only the extended Claude route omits the MCP probe from logged assemblies', async () => {
+  const { ctx, state } = fakeCtx()
+  const mod = await loadPlugin()
+  mod.apply(ctx, {})
+  try {
+    for (const provider of ['subscriptions-claude', 'subscriptions-codex', 'deepseek']) {
+      const assembly = { variables: { provider }, tools: [{ name: 'mcp_probe' }, { name: 'mcp_search' }] }
+      const result = await state.listener(assembly, {}, async () => assembly)
+      assert.equal(result.tools.some(tool => tool.name === 'mcp_probe'), provider !== 'subscriptions-claude')
+      assert.equal(result.tools.some(tool => tool.name === 'mcp_search'), true)
+    }
+  } finally {
+    for (const off of state.cleanups.reverse()) off()
   }
 })

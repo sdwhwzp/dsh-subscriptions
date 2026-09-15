@@ -1,6 +1,6 @@
 {
   "name": "@goodandready/dsh-subscriptions",
-  "version": "0.6.8",
+  "version": "0.6.8-dsh.20260915.1",
   "description": "Use ChatGPT Codex, Claude, Grok, Antigravity, Kimi, GLM, Cursor, Kiro, Copilot, Qwen, ERNIE, Spark, JetBrains, Perplexity, Replit, and Cody subscriptions as DeepSeek Harness LLM providers via OAuth.",
   "license": "MIT",
   "type": "module",
@@ -44,7 +44,11 @@
     },
     "client": {
       "platform": "web",
-      "inject": []
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
     }
   },
   "peerDependencies": {
@@ -65,6 +69,7 @@
   "devDependencies": {
     "@deepseek-ai/dsh-llm": "0.1.0-rc.8",
     "@types/node": "^22.20.2",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "eslint": "^9.0.0"
   }
 }

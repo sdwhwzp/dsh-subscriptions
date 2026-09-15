@@ -164,3 +164,5 @@ dsh plugin --profile web add @goodandready/dsh-subscriptions
 ## 📄 开源协议
 
 MIT © [GooDAnDReaDY](https://github.com/GooDAnDReaDY)
+
+本 fork 可与 dsh-plugin-subscriptions 同时使用。模型路由采用 subscriptions- 前缀，设置入口为“扩展订阅”，账号保存在独立凭据库。Claude 请求不包含 mcp_probe。线上密码网关仅允许管理员管理共享订阅账号。
