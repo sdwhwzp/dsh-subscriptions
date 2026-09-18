@@ -116,6 +116,14 @@
   списке ядра ликвидирован.
 - 2026-09-10 — аудит 30 полей схемы настроек (issue #282): все настраиваемые пользователем
   поля выведены в UI карточки; низкоуровневые override-поля документированы как YAML/config-only.
+- 2026-09-16 — пакет качества и надежности (v0.6.10, issues #318-#324):
+  1. Полная ликвидация кириллицы из кода (`lib/usage.js`, `lib/relative-time.js`), чистый EN/ZH билингвальный стандарт (#318).
+  2. Перевод вызовов логирования на нативный сервис `ctx.logger('subscriptions')` вместо несуществующего `ctx.log` (#323).
+  3. Устранение всех пустых блоков catch через хелпер `bestEffort` с логированием `logger.debug` (#324).
+  4. Сетевая надежность: подключение `fetchWithTimeout` к внешним сетевым вызовам провайдеров (`vendor-factory`, `accounts`, `adapter`) с дифференцированными таймаутами (#322).
+  5. UI темизация: перевод захардкоженных hex/rgba цветов интерфейса на нативные переменные темы DSH (`--dsw-alias-*`, `color-mix`) (#320).
+  6. Регистрация клиентских инжектов `dsh.client.inject: ["slots", "locale", "sessions"]` в package.json (#321).
+  7. Исключение внутренних и служебных файлов из отслеживания git (`AGENTS.md`, `index.md`, `deploy.sh`, `docs/plans/`, `.gitea/`) с добавлением в `.gitignore`, фиксация статуса служебных скриптов разработчика (`scripts/install.sh`, `eslint.config.js`, `tsconfig.checkjs.json`) (#319).
 - 2026-09-12 — унификация UI и дизайн-системы с `dsh-clinebot` (версия 0.6.6):
   статусные бейджи в шапке с замером задержки бэкенда, интерактивный Smoke Test (Ping),
   панель телеметрии сессии (`.dsub-stat-box`), структурированные карточки секций
@@ -181,3 +189,17 @@
 - **Индивидуальный статус-чекер аккаунта**:
   - Кнопка «Check» в карточке аккаунта отправляет `POST /dsh-subscriptions/check`.
   - Маршрут теперь измеряет фактическое время ответа (`latencyMs`) и возвращает его в UI для мгновенной оценки здоровья и задержки конкретного слота.
+
+## Host One-Click Updater & Stability Hardening (v0.6.9)
+- **One-Click Plugin Updater (`/dsh-subscriptions/update`)**:
+  - `GET /dsh-subscriptions/update`: возвращает снимок статуса версии плагина: `packageName`, `currentVersion`, `latestVersion`, `updateAvailable`, `profileName`, `canAutoUpdate`.
+  - `POST /dsh-subscriptions/update`: выполняет установку точной спецификации пакета через CLI DSH (`dsh plugin --profile <profile> add --config.minimumReleaseAge=0 <package>@<version>`).
+  - **Защита эндпоинта**: строгая проверка loopback (`isLoopback` для IPv4 `127.0.0.1`, IPv6 `::1`, `localhost`), валидация заголовков `x-dsh-plugin-update` и `Origin`/`Host`, защита от повторных параллельных вызовов (single-flight locking со статусом 409 Busy).
+  - **UI интеграция**: в шапке (`.dsub-header-bar`) отображается текущая версия, предупреждающий бейдж при наличии обновления и кнопка быстрого обновления («Update → vX.Y.Z») со статусом перезапуска службы.
+- **Таймауты и сетевая отказоустойчивость**:
+  - Добавлен гарантированный таймаут `AbortSignal.timeout(15_000)` при проверках баланса/квот и smoke-тестах в `lib/routes/status.js`.
+  - Поддержка объединения с внешним `init.signal` через `AbortSignal.any`.
+- **Нормализация параметров**:
+  - Эндпоинты `/check` толерантны к алиасам `provider || vendor` и `index || accountIndex`.
+- **Дедупликация в обработке аккаунтов**:
+  - Устранен дублирующий цикл нотификаций по пороговым значениям квот `snap.windows` в `lib/accounts.js`.

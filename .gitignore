@@ -7,3 +7,9 @@ node_modules/
 credentials.yaml
 .planning/
 *.log
+openwiki/
+AGENTS.md
+index.md
+deploy.sh
+docs/plans/
+.gitea/

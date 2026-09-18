@@ -155,6 +155,46 @@ dsh plugin --profile web add @goodandready/dsh-subscriptions
 
 ---
 
+## 🚀 一键插件自更新与稳定性强化 (v0.6.9 新增)
+
+- **宿主端一键更新**: 挂载于 `/dsh-subscriptions/update` 的就地更新机制，自动对比 npm registry 最新版本并通过宿主 DSH CLI 执行单飞安装 (`dsh plugin add --config.minimumReleaseAge=0`)。
+- **安全与来源防护**: 更新接口严格校验环回地址（支持 IPv4 `127.0.0.1`、IPv6 `::1`、`localhost`）、`x-dsh-plugin-update` 请求头及同源策略，阻断未授权跨站调用。
+- **状态栏徽章与更新按钮**: 设置面板顶部状态栏显示当前插件版本，有新版本时提示告警徽章并提供一键更新按钮与重启提示。
+- **网络超时熔断**: 配额检测与冒烟测试增加 15 秒超时信号保护 (`AbortSignal.timeout(15_000)`)，防止外部服务商接口故障导致请求挂起。
+- **参数容错与逻辑去重**: 状态接口兼容 `provider || vendor` 与 `index || accountIndex` 参数别名，并消除 `lib/accounts.js` 中的重复配额通知循环。
+
+---
+
+---
+
+## 🛡️ Token 用量规范化与会话投影修复 (v0.6.12 新增)
+
+- **会话投影崩溃修复 (GitHub #4)**：修复了使用 ChatGPT Codex 及其他流式模型时，首次回复后会话损坏、刷新页面报错 `received NaN, expected number on uncachedInputTokens and outputTokens` 且无法加载的问题。
+- **全格式通用 TokenUsage 转换**：在所有流式传输通道（`codexResponsesStream`、`openaiChatStream`、`anthropicStream`、`googleStream`）中引入统一的 `toTokenUsage()` 转换逻辑，将各服务商的原始用量数据标准化为 DSH 规范的 `TokenUsage` 接口（`inputTokens`、`outputTokens`、`cacheReadTokens`、`cacheWriteTokens`、`reasoningTokens`、`totalTokens`）。
+- **严格非负整数保底与独立缓存计算**：对所有 token 计数实施严格的非负整数约束（保底为 `0`，杜绝 `NaN` 与 `undefined`）。针对将缓存合并计入总 prompt 的供应商自动执行拆分，确保输入 token 数的准确性。
+- **适配器层纵深防御**：在 `SubscriptionAdapter` 中新增用量数据过滤与净化机制，从根源上阻止异常用量流入 DSH 会话持久化与状态恢复流程。
+
+---
+
+## 🔒 OAuth Client ID 校验保护与控制台地址更新 (v0.6.11 新增)
+
+- **Google OAuth Client ID 校验保护 (GitHub #2)**：uildAuthorizeUrl 和 ntigravity.authorizeUrl 严格要求非空 clientId。未配置时服务端返回明确的 HTTP 400 (missing_client_id)，前端界面提示用户在插件设置中填写 ntigravityClientId 或使用“📥 从 CLI 导入”，避免浏览器跳转至 Google OAuth 400 报错页面。
+- **配置架构新增密钥项**：在插件 Config 架构中新增 ntigravityClientSecret，方便用户在设置中配置客户端密钥，并在公共接口中自动脱敏脱密。
+- **智谱 GLM 控制台地址迁移 (GitHub #3)**：将智谱 GLM 授权与 API Key 获取链接更新为最新控制台有效路由 (https://bigmodel.cn/usercenter/proj-mgmt/apikeys)，彻底解决因服务商控制台路由调整导致的 404 错误。
+
+---
+
+## 🛡️ 稳定性与代码质量强化 (v0.6.10 新增)
+
+- **结构化异常降级**: 全面移除运行时空 catch 块，统一采用带诊断日志的 `bestEffort` 安全兜底机制。
+- **原生上下文日志**: 所有日志统一接入 Cordis 规范子系统 `ctx.logger('subscriptions')`。
+- **外部网络超时保护**: 为所有模型商 API 网络调用（`listModels`、`fetchFor`、`quotaFetch`、`jsonTokenRequest`）建立 `fetchWithTimeout` 与 `AbortSignal.timeout` 超时熔断保护。
+- **设计系统主题对齐**: 将 `client.js` 中的静态样式硬编码替换为 DeepSeek Harness 原生 CSS 主题令牌（`--dsw-alias-*`、`color-mix`），彻底消除独立的 `rgba` 颜色。
+- **客户端依赖注入显式化**: 在 `package.json` 清单中显式声明前端所需平台注入项（`@deepseek-ai/dsh-client-locale` 与 `@deepseek-ai/dsh-client-ui-slots`）。
+- **公开仓库卫生规范**: 将内部研发指令与计划文件移出 Git 跟踪并加入 `.gitignore`，确保公开版本干净无私有残余。
+
+---
+
 ## 🌐 本地化
 
 插件源语言仅为英语。俄语及其他翻译由独立的语言插件（如俄化插件）在运行时对注册的本地化键进行翻译，包本身不内置翻译（Changed in 0.6.1）。
@@ -165,4 +205,4 @@ dsh plugin --profile web add @goodandready/dsh-subscriptions
 
 MIT © [GooDAnDReaDY](https://github.com/GooDAnDReaDY)
 
-本 fork 可与 dsh-plugin-subscriptions 同时使用。模型路由采用 subscriptions- 前缀，设置入口为“扩展订阅”，账号保存在独立凭据库。Claude 请求不包含 mcp_probe。线上密码网关仅允许管理员管理共享订阅账号。
+本 fork 可与 dsh-plugin-subscriptions 同时使用。模型路由采用 subscriptions- 前缀，设置入口为“扩展订阅”，账号保存在独立凭据库。Claude 请求不包含 mcp_probe。线上密码网关仅允许管理员管理共享订阅账号。fork 构建（`-dsh.` 版本）通过本地 tarball 安装，一键更新只显示当前版本，不会安装上游 npm 发行版。

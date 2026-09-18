@@ -260,6 +260,46 @@ Supports Anthropic's adaptive thinking (`thinking: { type: "adaptive" }`) and re
 
 ---
 
+## 🚀 One-Click Plugin Updater & Stability Hardening (Added in v0.6.9)
+
+- **Host One-Click Updater**: Automatic in-place updater mounted at `/dsh-subscriptions/update`, checking the npm registry for newer releases and executing single-flight installation via the host DSH CLI (`dsh plugin add --config.minimumReleaseAge=0`).
+- **Security & Origin Protection**: Updater endpoints enforce strict loopback address checks (supporting IPv4 `127.0.0.1`, IPv6 `::1`, `localhost`), `x-dsh-plugin-update` header verification, and same-origin validation to prevent unauthorized updates.
+- **Header Badge & UI Action**: The settings header bar displays current plugin version, an update warning badge when a new release is detected, and an instant "Update" button with live restart countdown.
+- **Network Timeout Hardening**: Quota balance and smoke test probes now enforce guaranteed 15-second abort timeouts (`AbortSignal.timeout(15_000)`), preventing hanging sockets during vendor outages.
+- **Parameter Normalization & Deduplication**: Unified support for `provider || vendor` and `index || accountIndex` aliases in check endpoints, and deduplicated threshold notification loops.
+
+---
+
+---
+
+## 🛡️ Token Usage Normalization & Session Projection Fix (Added in v0.6.12)
+
+- **Session Projection Fix (GitHub #4)**: Fixed an issue where ChatGPT Codex and other streaming provider responses caused DSH session recovery to fail on page reload with `received NaN, expected number on uncachedInputTokens and outputTokens`.
+- **Canonical `TokenUsage` Normalization**: Introduced `toTokenUsage()` across all streaming pipelines (`codexResponsesStream`, `openaiChatStream`, `anthropicStream`, and `googleStream`) to map raw vendor usage payloads into canonical DSH `TokenUsage` (`inputTokens`, `outputTokens`, `cacheReadTokens`, `cacheWriteTokens`, `reasoningTokens`, `totalTokens`).
+- **Strict Integer Guard**: All token counts are strictly guarded to non-negative finite integers (guaranteeing `0` fallback, never `NaN` or `undefined`). Disjoint uncached token calculation is performed when cached tokens are folded into prompt totals.
+- **Defense in Depth**: Added adapter-level stream validation in `SubscriptionAdapter` to prevent malformed or invalid token usage chunks from ever reaching DSH session persistence.
+
+---
+
+## 🔒 OAuth Client Validation & Route Updates (Added in v0.6.11)
+
+- **OAuth Client ID Guard (GitHub #2)**: uildAuthorizeUrl and ntigravity.authorizeUrl now strictly require a non-empty clientId. If unconfigured, the endpoint returns an explicit HTTP 400 (missing_client_id) and the UI prompts the user to configure ntigravityClientId in plugin settings or use "From CLI" instead of directing the browser to a failing Google OAuth page.
+- **Config Schema Secret Key**: Added ntigravityClientSecret to the plugin configuration schema, allowing convenient entry of private client secrets alongside ntigravityClientId with automatic masking in public endpoints.
+- **Zhipu GLM Console Route Migration (GitHub #3)**: Updated the Zhipu GLM authorization and API key center link to the active console route (https://bigmodel.cn/usercenter/proj-mgmt/apikeys), eliminating 404 navigation errors caused by vendor console restructuring.
+
+---
+
+## 🛡️ Reliability & Quality Hardening (Added in v0.6.10)
+
+- **Structured Error Handling**: Eliminated all empty catch blocks across the plugin runtime via safe `bestEffort` helper logging debug diagnostics.
+- **Native Context Logger**: Migrated all plugin logging to the canonical Cordis `ctx.logger('subscriptions')` subsystem.
+- **Network Timeout Protection**: Hardened external vendor API calls (`listModels`, `fetchFor`, `quotaFetch`, `jsonTokenRequest`) with explicit `fetchWithTimeout` and `AbortSignal.timeout` safeguards.
+- **Design System Theming**: Replaced hardcoded styling values with native DeepSeek Harness CSS theme tokens (`--dsw-alias-*`, `color-mix`), achieving 100% theme token coverage and zero standalone `rgba` values.
+- **Client Dependency Injections**: Explicitly declared required client platform dependencies (`@deepseek-ai/dsh-client-locale`, `@deepseek-ai/dsh-client-ui-slots`) in package manifest.
+- **Strict Repository Hygiene**: Removed internal development instructions and planning artifacts from git tracking, enforcing clean public releases.
+
+---
+
 ## 🌐 Localization
 
 The plugin source language is English only. Russian and other translations are provided at runtime by separate language plugins (for example the russification plugin), which translate the registered locale keys - the package itself ships no bundled translations (Changed in 0.6.1).
@@ -270,4 +310,4 @@ The plugin source language is English only. Russian and other translations are p
 
 MIT © [GooDAnDReaDY](https://github.com/GooDAnDReaDY)
 
-This fork coexists with dsh-plugin-subscriptions. Its model routes use the subscriptions- prefix, its Settings entry is Extended subscriptions, and credentials stay in its own credential store. Claude requests omit mcp_probe. Shared account management requires an administrator on the deployed password gateway.
+This fork coexists with dsh-plugin-subscriptions. Its model routes use the subscriptions- prefix, its Settings entry is Extended subscriptions, and credentials stay in its own credential store. Claude requests omit mcp_probe. Shared account management requires an administrator on the deployed password gateway. Fork builds (`-dsh.` versions) install from a local tarball, so the one-click updater reports the current version only and never installs the upstream npm release.
