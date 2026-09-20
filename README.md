@@ -311,3 +311,5 @@ The plugin source language is English only. Russian and other translations are p
 MIT © [GooDAnDReaDY](https://github.com/GooDAnDReaDY)
 
 This fork coexists with dsh-plugin-subscriptions. Its model routes use the subscriptions- prefix, its Settings entry is Extended subscriptions, and credentials stay in its own credential store. Claude requests omit mcp_probe. Shared account management requires an administrator on the deployed password gateway. Fork builds (`-dsh.` versions) install from a local tarball, so the one-click updater reports the current version only and never installs the upstream npm release.
+
+Provider startup retries compare namespaced routes, stop after disposal, and remain bounded when credential reads fail. The fork retains its regression tests and type checks alongside the upstream runtime.

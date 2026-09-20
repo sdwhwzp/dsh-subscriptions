@@ -134,3 +134,26 @@ test('only the extended Claude route omits the MCP probe from logged assemblies'
     for (const off of state.cleanups.reverse()) off()
   }
 })
+
+for (const claimed of [false, true]) {
+  test(`namespaced provider registration preserves other adapters (claimed=${claimed})`, async () => {
+    const mod = await loadPlugin()
+    const { ctx, state } = fakeCtx()
+    const config = mod.Config({ slots: [{ provider: 'codex', index: 1, ref: 'subscriptions.codex.1' }] })
+    ctx.settings.register = () => ({ get: () => config, watch: () => () => {} })
+    ctx.credentials.describe = async () => ({ configured: true })
+    ctx.credentials.resolve = async () => null
+    ctx.llm.listProviders = () => [{ id: claimed ? 'subscriptions-codex' : 'codex' }]
+    mod.apply(ctx, config)
+    try {
+      await new Promise(resolve => setImmediate(resolve))
+      if (claimed) assert.deepEqual(state.adapters, [])
+      else {
+        assert.ok(state.adapters.length > 0)
+        for (const row of state.adapters) assert.deepEqual(row.providers, ['subscriptions-codex'])
+      }
+    } finally {
+      for (const off of state.cleanups.reverse()) off()
+    }
+  })
+}
