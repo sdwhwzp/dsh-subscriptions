@@ -1,5 +1,17 @@
-import { test } from 'node:test'
+import { test, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
+import { HistoryStore } from '../lib/history.js'
+
+let histories
+beforeEach((t) => {
+  histories = []
+  t.mock.method(HistoryStore.prototype, '_load', function () { histories.push(this) })
+  t.mock.method(HistoryStore.prototype, '_persist', () => {})
+  t.mock.method(HistoryStore.prototype, 'flush', () => {})
+})
+afterEach(() => {
+  for (const store of histories) process.removeListener('beforeExit', store._exitHandler)
+})
 
 // #288 follow-up: index.js apply() sat at 7.8% coverage because the
 // cordis context is only available inside the harness. This fake ctx
@@ -66,6 +78,42 @@ function fakeCtx() {
 async function loadPlugin() {
   const mod = await import('../lib/index.js')
   return mod
+}
+
+for (const enabled of [false, true]) {
+  test(`chat fallback is opt-in and does not revisit a provider (enabled=${enabled})`, async () => {
+    const mod = await loadPlugin()
+    const { ctx, state } = fakeCtx()
+    const config = mod.Config({
+      slots: [{ provider: 'claude', index: 1 }, { provider: 'cursor', index: 1 }],
+      cascadingFallback: enabled, cascadingChain: { claude: ['cursor'], cursor: ['claude'] },
+      ollamaFallback: false, probeIntervalMin: 0,
+    })
+    const registered = Promise.withResolvers()
+    ctx.settings.register = () => ({ get: () => config, watch: () => () => {} })
+    ctx.credentials.describe = async () => ({ configured: true })
+    ctx.credentials.resolve = async () => null
+    ctx.llm.listProviders = () => []
+    ctx.llm.registerAdapter = (providers, adapter) => { registered.resolve(adapter); return () => {} }
+    mod.apply(ctx, config)
+    try {
+      const routed = await registered.promise
+      let configBody
+      await state.routes.find(row => row.path === '/dsh-subscriptions/config').handler(
+        { method: 'GET', headers: {} },
+        { writeHead() {}, end(body) { configBody = JSON.parse(body) } },
+      )
+      assert.deepEqual(configBody.accounts.map(account => account.healthScore), [100, 100])
+      const visited = []
+      routed.adapter.deps.listAccounts = async (provider) => {
+        visited.push(provider)
+        if (visited.length > 4) throw Object.assign(new Error('cycle fixture'), { name: 'AbortError' })
+        return []
+      }
+      await assert.rejects(routed.stream({ provider: 'subscriptions-claude', model: 'fixture', messages: [] }).next())
+      assert.deepEqual(visited, enabled ? ['claude', 'cursor'] : ['claude'])
+    } finally { for (const off of state.cleanups.reverse()) off() }
+  })
 }
 
 test('plugin metadata declares the cordis contract', async () => {

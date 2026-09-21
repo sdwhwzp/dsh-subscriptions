@@ -315,3 +315,7 @@ This fork coexists with dsh-plugin-subscriptions. Its model routes use the subsc
 Provider startup retries compare namespaced routes, stop after disposal, and remain bounded when credential reads fail. The fork retains its regression tests and type checks alongside the upstream runtime.
 
 Copilot supports device-code login and token refresh. Account probes use the selected account's proxy, and quota refresh runs in the background without delaying the first model response. Settings writes retain the deployed administrator check and validate Origin or Referer when the browser omits Fetch Metadata.
+
+The 0.6.17 fork adds a localized account health and quota table and encrypted vault import/export endpoints. Imports validate declared account slots before writing credentials and report storage failures. The deployed gateway restricts these routes to administrators. `cascadingFallback` remains off by default; when enabled for chat, each provider is attempted at most once, cancellation and invalid requests do not cascade, and output already delivered prevents another fallback.
+
+The upstream warm-up transitions, pacing calculations, and alert helpers are available as exports, but automatic warm-up, pacing data collection, and webhook triggers are not connected to the account lifecycle in this release. The health table displays recorded health and quota data; it does not promise automatic recovery or a measured quota runway.

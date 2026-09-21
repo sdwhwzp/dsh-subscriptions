@@ -206,3 +206,7 @@ dsh plugin --profile web add @goodandready/dsh-subscriptions
 MIT © [GooDAnDReaDY](https://github.com/GooDAnDReaDY)
 
 本 fork 可与 dsh-plugin-subscriptions 同时使用。模型路由采用 subscriptions- 前缀，设置入口为“扩展订阅”，账号保存在独立凭据库。Claude 请求不包含 mcp_probe。线上密码网关仅允许管理员管理共享订阅账号。fork 构建（`-dsh.` 版本）通过本地 tarball 安装，一键更新只显示当前版本，不会安装上游 npm 发行版。
+
+0.6.17 fork 增加中英文账号健康与额度表，以及加密备份导入、导出接口。导入会在写入凭据前校验声明的账号槽位，写入失败会明确报错；线上网关仅允许管理员访问这些接口。`cascadingFallback` 默认关闭；启用聊天回退后，同一请求最多尝试每个服务商一次，取消或请求参数错误不触发跨服务商请求，已输出内容后不再切换重写。
+
+上游提供了预热状态转换、消耗速率计算和告警辅助函数，但本版尚未把自动预热、速率采集与 webhook 触发接入账号生命周期。健康表显示已记录的健康度与额度，不代表自动恢复或剩余可用时长预测已启用。
