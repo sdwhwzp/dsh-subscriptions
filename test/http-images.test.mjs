@@ -66,6 +66,21 @@ test('isTrustedSettingsRequest rejects cross-site only', () => {
   assert.equal(isTrustedSettingsRequest({ headers: {} }), true)
 })
 
+test('settings fallback checks Origin and Referer against the request host', () => {
+  for (const field of ['origin', 'referer']) {
+    const good = { host: 'settings.example:3081', [field]: 'https://settings.example:3081/settings' }
+    assert.equal(isTrustedSettingsRequest({ headers: good }), true)
+    assert.equal(isTrustedSettingsRequest({ headers: { ...good, [field]: 'https://other.example/settings' } }), false)
+    assert.equal(isTrustedSettingsRequest({ headers: { ...good, [field]: 'invalid url' } }), false)
+    assert.equal(isTrustedSettingsRequest({ headers: { 'x-forwarded-host': good.host, [field]: good[field] } }), true)
+  }
+})
+
+test('settings requests reject ambiguous host and Fetch Metadata headers', () => {
+  assert.equal(isTrustedSettingsRequest({ headers: { 'sec-fetch-site': ['same-origin', 'cross-site'] } }), false)
+  assert.equal(isTrustedSettingsRequest({ headers: { 'x-forwarded-host': ['settings.example', 'other.example'], origin: 'https://settings.example' } }), false)
+})
+
 test('queryOf parses the query string and tolerates bad urls', () => {
   assert.equal(queryOf({ url: '/x?a=1&b=two' }).get('a'), '1')
   assert.equal(queryOf({ url: '/x?a=1&b=two' }).get('b'), 'two')

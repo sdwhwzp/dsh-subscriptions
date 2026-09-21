@@ -45,3 +45,25 @@ test('SubscriptionAdapter.prepareCall returns model and stream callable', async 
   assert.equal(prepared.model.id, 'gpt-5.4-mini')
   assert.equal(typeof prepared.stream, 'function')
 })
+
+test('pending usage refresh does not delay account selection', async () => {
+  const { SubscriptionAdapter } = await import('../lib/adapter.js')
+  const refresh = Promise.withResolvers()
+  let selected = false
+  const adapter = new SubscriptionAdapter({
+    refreshUsage: () => refresh.promise,
+    listAccounts: async () => { selected = true; return [] },
+    cooldownMs: () => 1000,
+    ollamaFallback: async function* () { yield { type: 'text-delta', index: 0, text: 'fallback' } },
+  })
+  const stream = adapter.stream({ provider: 'codex', model: 'gpt-5.1-codex', messages: [] })
+  const next = stream.next()
+  try {
+    await Promise.resolve()
+    assert.equal(selected, true)
+    assert.equal((await next).value.text, 'fallback')
+  } finally {
+    refresh.resolve()
+    await stream.return()
+  }
+})

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { pinSession, getPinnedAccountRef, unpinSession, clearSessionPins } from '../lib/session-pin.js'
+import { pinSession, getPinnedAccountRef, unpinSession, clearSessionPins, pruneSessionPins } from '../lib/session-pin.js'
 
 // #288 follow-up: session-pin had 34% coverage. Pin lifecycle matters
 // for account stickiness during a conversation.
@@ -42,6 +42,16 @@ test('a later pin replaces the earlier one', () => {
   pinSession('s4', 'REF_OLD')
   pinSession('s4', 'REF_NEW')
   assert.equal(getPinnedAccountRef('s4'), 'REF_NEW')
+})
+
+test('pruning drops expired pins while retaining live bindings', () => {
+  clearSessionPins()
+  pinSession('expired', 'REF_OLD', -1)
+  pinSession('live', 'REF_LIVE', Number.MAX_SAFE_INTEGER)
+  pruneSessionPins(Date.now())
+  assert.equal(getPinnedAccountRef('expired'), null)
+  assert.equal(getPinnedAccountRef('live'), 'REF_LIVE')
+  clearSessionPins()
 })
 
 test('unpin removes a single session, clear removes all', () => {
