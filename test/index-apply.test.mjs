@@ -1,6 +1,7 @@
 import { test, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { HistoryStore } from '../lib/history.js'
+import { Readable } from 'node:stream'
 
 let histories
 beforeEach((t) => {
@@ -28,9 +29,10 @@ function fakeCtx() {
     injections: [],
     cleanups: [],
     emitted: [],
+    listeners: new Map(),
   }
   const ctx = {
-    on(name, listener) { state.listener = listener; state.event = name; return () => { state.listener = undefined } },
+    on(name, listener) { state.listeners.set(name, listener); return () => { state.listeners.delete(name) } },
     log: { warn() {}, error() {}, info() {} },
     emit(name, payload) { state.emitted.push({ name, payload }) },
     provide(name, value) {
@@ -174,7 +176,7 @@ test('only the extended Claude route omits the MCP probe from logged assemblies'
   try {
     for (const provider of ['subscriptions-claude', 'subscriptions-codex', 'deepseek']) {
       const assembly = { variables: { provider }, tools: [{ name: 'mcp_probe' }, { name: 'mcp_search' }] }
-      const result = await state.listener(assembly, {}, async () => assembly)
+      const result = await state.listeners.get('system-prompt/assemble')(assembly, {}, async () => assembly)
       assert.equal(result.tools.some(tool => tool.name === 'mcp_probe'), provider !== 'subscriptions-claude')
       assert.equal(result.tools.some(tool => tool.name === 'mcp_search'), true)
     }
@@ -205,3 +207,68 @@ for (const claimed of [false, true]) {
     }
   })
 }
+
+async function configRequest(state, method = 'GET', config) {
+  const req = Readable.from(config ? [Buffer.from(JSON.stringify(config))] : [])
+  req.method = method
+  req.headers = { 'sec-fetch-site': 'same-origin' }
+  let status, body
+  await state.routes.find(row => row.path === '/dsh-subscriptions/config').handler(req, {
+    writeHead(code) { status = code },
+    end(value) { body = JSON.parse(value) },
+  })
+  return { status, body }
+}
+
+test('config reads use the cached snapshot until the owning document or watcher changes', async () => {
+  const mod = await loadPlugin()
+  const { ctx, state } = fakeCtx()
+  let config = mod.Config({ slots: [], autoLoopback: false, ollamaFallback: false, probeIntervalMin: 0 })
+  let reads = 0, watch
+  ctx.settings.register = () => ({
+    get() { reads++; return config },
+    watch(listener) { watch = listener; return () => { watch = undefined } },
+  })
+  mod.apply(ctx, config)
+  try {
+    const initialReads = reads
+    assert.equal((await configRequest(state)).body.config.codexFastMode, false)
+    config = { ...config, codexFastMode: true }
+    state.listeners.get('settings/document-updated')('another-plugin')
+    assert.equal((await configRequest(state)).body.config.codexFastMode, false)
+    assert.equal(reads, initialReads)
+    state.listeners.get('settings/document-updated')('dsh-subscriptions')
+    assert.equal((await configRequest(state)).body.config.codexFastMode, true)
+    assert.equal(reads, initialReads + 1)
+    config = { ...config, codexFastMode: false }
+    watch(config)
+    assert.equal((await configRequest(state)).body.config.codexFastMode, false)
+  } finally { for (const off of state.cleanups.reverse()) off() }
+  assert.equal(watch, undefined)
+})
+
+test('pending and rejected settings writes leave the active subscription config unchanged', async () => {
+  const mod = await loadPlugin()
+  const { ctx, state } = fakeCtx()
+  let config = mod.Config({ slots: [], autoLoopback: false, ollamaFallback: false, probeIntervalMin: 0 })
+  let started = Promise.withResolvers(), write = Promise.withResolvers()
+  ctx.settings.register = () => ({
+    get: () => config,
+    async replace(next) { started.resolve(); await write.promise; config = next },
+  })
+  mod.apply(ctx, config)
+  try {
+    const pending = configRequest(state, 'PUT', { ...config, codexFastMode: true })
+    await started.promise
+    assert.equal((await configRequest(state)).body.config.codexFastMode, false)
+    write.reject(new Error('fixture persistence failure'))
+    assert.equal((await pending).status, 400)
+    assert.equal((await configRequest(state)).body.config.codexFastMode, false)
+    started = Promise.withResolvers(); write = Promise.withResolvers()
+    const success = configRequest(state, 'PUT', { ...config, codexFastMode: true })
+    await started.promise
+    write.resolve()
+    assert.equal((await success).status, 200)
+    assert.equal((await configRequest(state)).body.config.codexFastMode, true)
+  } finally { write.resolve(); for (const off of state.cleanups.reverse()) off() }
+})
