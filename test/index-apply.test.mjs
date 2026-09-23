@@ -272,3 +272,34 @@ test('pending and rejected settings writes leave the active subscription config 
     assert.equal((await configRequest(state)).body.config.codexFastMode, true)
   } finally { write.resolve(); for (const off of state.cleanups.reverse()) off() }
 })
+
+test('Harness profile settings save against the owning entry and read its replacement fiber', async () => {
+  const mod = await loadPlugin()
+  const { ctx, state } = fakeCtx()
+  const config = mod.Config({ slots: [], autoLoopback: false, ollamaFallback: false, probeIntervalMin: 0 })
+  const entry = { fiber: { config } }
+  ctx.fiber = { entry }
+  ctx.settings = {}
+  const edits = []
+  ctx.get = name => {
+    assert.equal(name, 'configEditor')
+    return {
+      entries: () => [entry],
+      async edit(owner, change) {
+        assert.equal(owner, entry)
+        const next = change(entry.fiber.config, {})
+        edits.push(next)
+        entry.fiber = { config: next }
+      },
+    }
+  }
+  mod.apply(ctx, config)
+  try {
+    assert.equal((await configRequest(state)).body.config.codexFastMode, false)
+    const result = await configRequest(state, 'PUT', { ...config, codexFastMode: true })
+    assert.equal(result.status, 200)
+    assert.equal(result.body.config.codexFastMode, true)
+    assert.equal((await configRequest(state)).body.config.codexFastMode, true)
+    assert.equal(edits.length, 1)
+  } finally { for (const off of state.cleanups.reverse()) off() }
+})

@@ -318,6 +318,8 @@ Provider startup retries compare namespaced routes, stop after disposal, and rem
 
 Subscription requests read a cached configuration snapshot. Settings document events and watchers refresh that snapshot; explicit writes refresh it only after persistence succeeds. A pending or failed write keeps the previous active configuration.
 
+On Harness 0.1.7, subscription settings persist through the owning profile entry's ConfigEditor. Native plugin reconfiguration applies the saved values; hosts exposing the older settings registration API retain that integration.
+
 Copilot supports device-code login and token refresh. Account probes use the selected account's proxy, and quota refresh runs in the background without delaying the first model response. Settings writes retain the deployed administrator check and validate Origin or Referer when the browser omits Fetch Metadata.
 
 The 0.6.17 fork adds a localized account health and quota table and encrypted vault import/export endpoints. Imports validate declared account slots before writing credentials and report storage failures. The deployed gateway restricts these routes to administrators. `cascadingFallback` remains off by default; when enabled for chat, each provider is attempted at most once, cancellation and invalid requests do not cascade, and output already delivered prevents another fallback.
