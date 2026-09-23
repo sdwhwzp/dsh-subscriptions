@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { openaiMessages, openaiTools, modelCatalog } from '../lib/messages.js'
+import { openaiMessages, openaiTools, modelCatalog, codexResponsesBody, anthropicPayload, googleContents } from '../lib/messages.js'
 import { httpError, tokenBlobFromOAuth, readJson, openaiChatStream, formTokenRequest, jsonTokenRequest } from '../lib/wire.js'
 
 // #288 follow-up: request-body builders and the SSE/wire helpers.
@@ -203,3 +203,18 @@ test('jsonTokenRequest posts a json body', async () => {
   assert.equal(calls[0].init.method, 'POST')
   assert.deepEqual(JSON.parse(calls[0].init.body), { code: 'c' })
 })
+
+for (const [name, build] of Object.entries({ openaiMessages, codexResponsesBody, anthropicPayload, googleContents })) {
+  test(`${name} preserves V4 tool results and rejects unsupported developer messages`, () => {
+    const call = { role: 'assistant', content: [{ type: 'tool-call', id: 'call_1', name: 'shell', arguments: '{}' }] }
+    const result = { role: 'tool', toolCallId: 'call_1', isError: true, content: text('denied') }
+    const actual = build({ messages: [call, result] })
+    const legacy = build({ messages: [call, { role: 'user', content: [{
+      type: 'tool-result', toolCallId: 'call_1', toolName: 'shell', isError: true, content: text('denied'),
+    }] }] })
+    assert.deepEqual(actual, legacy)
+    assert.match(JSON.stringify(actual), /denied/)
+    assert.throws(() => build({ messages: [{ role: 'developer', content: text('tools changed') }] }), /Developer messages/)
+    assert.equal(result.role, 'tool')
+  })
+}

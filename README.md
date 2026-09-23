@@ -1,5 +1,7 @@
 # 📦 @goodandready/dsh-subscriptions
 
+This fork supports Harness 0.1.7 tool-role messages across the shared provider translators, preserves error results, and keeps provider namespaces separate from dsh-plugin-subscriptions. Developer-role messages fail explicitly until supported.
+
 <div align="center">
 
 <h3>Personal AI Subscription Bridge, Multi-Account Pool Rotation & Zero-Leak OAuth for DeepSeek Harness</h3>
