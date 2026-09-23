@@ -118,3 +118,23 @@ test('backoff respects isRetryable', async () => {
     /fatal/
   )
 })
+
+for (const headers of [
+  { 'sec-fetch-site': 'cross-site' },
+  { host: 'example.test', origin: 'https://other.test' },
+]) {
+  test('smoke rejects cross-site requests before reading input or accounts: ' + JSON.stringify(headers), async () => {
+    const { registerStatusRoutes } = await import('../lib/routes/status.js')
+    const { ctx, routes } = fakeCtx()
+    const state = minimalState()
+    state.accountsView = async () => { assert.fail('Rejected request must not inspect accounts') }
+    registerStatusRoutes(ctx, state)
+    const smoke = routes.find(route => route.path === '/dsh-subscriptions/smoke')
+    let code = 0
+    let payload
+    const res = { writeHead(value) { code = value }, setHeader() {}, end(value) { payload = JSON.parse(value) } }
+    await smoke.handler({ method: 'POST', headers, on() { assert.fail('Rejected request must not read the body') } }, res)
+    assert.equal(code, 403)
+    assert.equal(payload.error.code, 'forbidden')
+  })
+}
