@@ -27,3 +27,23 @@ test('#94: filter off keeps the full catalog', async () => {
   const models = await makeAdapter(false).listModels('claude')
   assert.equal(models.length, 5)
 })
+
+test('model discovery uses the selected account fetch and keeps Codex defaults for an empty saved list', async () => {
+  const selected = []
+  const requests = []
+  const adapter = new SubscriptionAdapter({
+    listAccounts: async () => [{ hasToken: false, ref: 'empty' }, { hasToken: true, ref: 'selected' }],
+    loadBlob: async ref => { assert.equal(ref, 'selected'); return { accessToken: 'fixture-token' } },
+    ensureFresh: async (_provider, blob, ref) => { assert.equal(ref, 'selected'); return blob },
+    vendorConfig: () => ({ models: [] }),
+    fetchForRef: ref => {
+      selected.push(ref)
+      return async url => { requests.push(String(url)); throw new Error('Fixture endpoint unavailable') }
+    },
+    fetchImpl: async () => { assert.fail('Global fetch must not bypass the selected account proxy') },
+  })
+  const models = await adapter.listModels('codex')
+  assert.deepEqual(selected, ['selected'])
+  assert.equal(requests.length, 1)
+  assert.ok(models.some(model => model.id === 'gpt-5.6-luna'))
+})

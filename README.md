@@ -1,6 +1,6 @@
 # 📦 @goodandready/dsh-subscriptions
 
-This fork supports Harness 0.1.7 tool-role messages across the shared provider translators, preserves error results, and keeps provider namespaces separate from dsh-plugin-subscriptions. Developer-role messages fail explicitly until supported.
+This fork supports Harness 0.1.7 tool-role messages and imported OpenAI/Anthropic tool history across the shared provider translators, preserves call arguments and error results, and keeps provider namespaces separate from dsh-plugin-subscriptions. Codex marks unmatched calls as interrupted and omits orphan results from truncated history. Developer-role messages fail explicitly until supported.
 
 <div align="center">
 

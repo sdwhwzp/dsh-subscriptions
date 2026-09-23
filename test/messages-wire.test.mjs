@@ -217,4 +217,47 @@ for (const [name, build] of Object.entries({ openaiMessages, codexResponsesBody,
     assert.throws(() => build({ messages: [{ role: 'developer', content: text('tools changed') }] }), /Developer messages/)
     assert.equal(result.role, 'tool')
   })
+
+  test(`${name} preserves imported tool-call ids, arguments and results`, () => {
+    const canonical = [
+      { role: 'assistant', content: [{ type: 'tool-call', id: 'call_1', name: 'shell', arguments: '{"command":"pwd"}' }] },
+      { role: 'user', content: [{ type: 'tool-result', toolCallId: 'call_1', content: text('/workspace') }] },
+    ]
+    for (const imported of [
+      [
+        { role: 'assistant', content: [{ type: 'tool_use', id: 'call_1', name: 'shell', input: { command: 'pwd' } }] },
+        { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'call_1', content: '/workspace' }] },
+      ],
+      [
+        { role: 'assistant', content: [{ type: 'function_call', call_id: 'call_1', name: 'shell', arguments: '{"command":"pwd"}' }] },
+        { role: 'user', content: [{ type: 'function_call_output', call_id: 'call_1', output: '/workspace' }] },
+      ],
+      [
+        { role: 'assistant', tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'shell', arguments: '{"command":"pwd"}' } }] },
+        { role: 'tool', tool_call_id: 'call_1', content: '/workspace' },
+      ],
+    ]) {
+      assert.deepEqual(build({ messages: imported }), build({ messages: canonical }))
+    }
+  })
 }
+
+test('Codex repairs interrupted calls before a resumed user turn without inventing completed outputs', () => {
+  const input = codexResponsesBody({ messages: [
+    { role: 'assistant', content: [{ type: 'tool-call', id: 'pending', name: 'shell', arguments: '{}' }] },
+    { role: 'user', content: text('continue') },
+    { role: 'assistant', content: [{ type: 'tool-call', id: 'complete', name: 'shell', arguments: '{}' }] },
+    { role: 'tool', toolCallId: 'complete', content: text('done') },
+  ] }).input
+  assert.deepEqual(input.map(item => item.type || item.role), ['function_call', 'function_call_output', 'user', 'function_call', 'function_call_output'])
+  assert.deepEqual(input[1], { type: 'function_call_output', call_id: 'pending', output: '{"status":"interrupted"}' })
+  assert.equal(input[4].output, 'done')
+})
+
+test('Codex omits orphan results from a truncated history and retains the next user message', () => {
+  const input = codexResponsesBody({ messages: [
+    { role: 'tool', toolCallId: 'pruned', content: text('old output') },
+    { role: 'user', content: text('continue') },
+  ] }).input
+  assert.deepEqual(input, [{ role: 'user', content: [{ type: 'input_text', text: 'continue' }] }])
+})
