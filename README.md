@@ -327,3 +327,5 @@ The 0.6.17 fork adds a localized account health and quota table and encrypted va
 The upstream warm-up transitions, pacing calculations, and alert helpers are available as exports, but automatic warm-up, pacing data collection, and webhook triggers are not connected to the account lifecycle in this release. The health table displays recorded health and quota data; it does not promise automatic recovery or a measured quota runway.
 
 Public configuration reads redact proxy passwords and custom-provider keys and headers. Saving an unchanged masked value retains the existing secret for the same account or provider; changing the account or masked proxy address requires entering credentials again. Antigravity client secrets remain configurable and redacted. Settings reads and proxy requests require a same-origin browser request or a verified loopback connection.
+
+Browser management requests omit the page Referer so gateways that rewrite Host can serve settings and account status. Relative same-origin URLs, cookies, Origin and Fetch Metadata checks, and administrator authorization remain in effect.
