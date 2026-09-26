@@ -214,3 +214,5 @@ MIT © [GooDAnDReaDY](https://github.com/GooDAnDReaDY)
 公共配置读取会隐藏代理密码、自定义供应商密钥和认证请求头。保存未改动的脱敏值时，保留同一账号或供应商已有的密钥；修改账号或已脱敏的代理地址时，需要重新输入凭据。Antigravity 客户端密钥继续支持配置和脱敏。设置读取和代理请求要求浏览器同源请求或已验证的本机回环连接。
 
 浏览器管理请求不发送页面 Referer，使改写 Host 的网关仍能提供设置与账号状态。相对同源地址、Cookie、Origin 与 Fetch Metadata 检查及管理员授权继续生效。
+
+Codex 模型目录请求默认采用 CLI 身份版本 `0.157.1`，可用 `codexClientVersion` 覆盖。回退目录包含 GPT-6 Astra/Sol/Luna、GPT-5.6 Sol/Terra/Luna 和 GPT-5.5。缓存分析读取插件最近 50 条历史中的 Token 用量；没有 Token 计数的记录不参与统计。历史读取与分析请求遵守设置管理接口的同源及账号权限限制。

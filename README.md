@@ -329,3 +329,5 @@ The upstream warm-up transitions, pacing calculations, and alert helpers are ava
 Public configuration reads redact proxy passwords and custom-provider keys and headers. Saving an unchanged masked value retains the existing secret for the same account or provider; changing the account or masked proxy address requires entering credentials again. Antigravity client secrets remain configurable and redacted. Settings reads and proxy requests require a same-origin browser request or a verified loopback connection.
 
 Browser management requests omit the page Referer so gateways that rewrite Host can serve settings and account status. Relative same-origin URLs, cookies, Origin and Fetch Metadata checks, and administrator authorization remain in effect.
+
+Codex catalog requests use CLI identity version `0.157.1` by default; `codexClientVersion` overrides it. The fallback catalog includes GPT-6 Astra/Sol/Luna, GPT-5.6 Sol/Terra/Luna, and GPT-5.5. Cache analysis reads the latest 50 plugin history entries with token usage; records without token counts do not contribute. Its history and analysis requests use the same protected management routes as settings.

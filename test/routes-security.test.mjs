@@ -1,4 +1,5 @@
 import { test } from 'node:test'
+import { Readable } from 'node:stream'
 import assert from 'node:assert/strict'
 import { parseProxyUrl } from '../lib/proxy.js'
 import { registerProxyRoutes } from '../lib/routes/proxy.js'
@@ -27,7 +28,7 @@ function harness() {
   registerProxyRoutes(ctx, state)
   const proxy = routes.find((r) => r.path === '/dsh-subscriptions/proxy')
   assert.ok(proxy, 'proxy route registered')
-  return { proxy, requested }
+  return { proxy, requested, analyze: routes.find(row => row.path === '/dsh-subscriptions/analyze-session') }
 }
 
 const res = () => {
@@ -82,4 +83,32 @@ test('parseProxyUrl allows only http, https and socks5', () => {
   assert.equal(parseProxyUrl(''), null)
   assert.equal(parseProxyUrl('not a url'), null)
   assert.equal(parseProxyUrl('http://'), null)
+})
+
+
+for (const headers of [
+  { host: 'localhost:3081', 'sec-fetch-site': 'cross-site' },
+  { host: 'localhost:3081', origin: 'https://unrelated.example', 'sec-fetch-site': 'same-origin' },
+  {},
+]) {
+  test('cache analysis rejects untrusted requests before consuming the body: ' + JSON.stringify(headers), async () => {
+    const { analyze } = harness()
+    const response = res()
+    await analyze.handler({ method: 'POST', headers, [Symbol.asyncIterator]() { throw new Error('must not consume rejected body') } }, response)
+    assert.equal(response.code, 403)
+  })
+}
+
+test('cache analysis accepts a same-origin POST with token usage', async () => {
+  const { analyze } = harness()
+  const request = Readable.from([Buffer.from(JSON.stringify({ events: [{ usage: { inputTokens: 100, cacheReadTokens: 25, outputTokens: 10 } }] }))])
+  request.method = 'POST'
+  request.headers = { host: 'localhost:3081', 'sec-fetch-site': 'same-origin' }
+  const response = res()
+  await analyze.handler(request, response)
+  assert.equal(response.code, 200)
+  const body = JSON.parse(response.body)
+  assert.equal(body.analysis.weightedCacheHitPercent, 25)
+  assert.equal(body.analysis.savedTokens, 25)
+  assert.equal(body.analysis.totalTokens, 110)
 })

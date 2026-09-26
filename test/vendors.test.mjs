@@ -241,7 +241,7 @@ test('codex listModels falls back to the current built-in catalog when live list
     {},
     fetchImpl,
   )
-  assert.deepEqual(rows.map((row) => row.id), ['gpt-5.6-luna', 'gpt-5.3-codex', 'gpt-5.2-codex', 'gpt-5.1-codex', 'gpt-5.1-codex-mini', 'gpt-5.1'])
+  assert.deepEqual(rows.map((row) => row.id), ['gpt-6-astra', 'gpt-6-sol', 'gpt-6-luna', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5'])
 })
 
 test('claude static catalog matches subscription 5.x ids', () => {

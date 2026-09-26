@@ -2,6 +2,7 @@ import { test, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { HistoryStore } from '../lib/history.js'
 import { Readable } from 'node:stream'
+import { setImmediate } from 'node:timers'
 
 let histories
 beforeEach((t) => {

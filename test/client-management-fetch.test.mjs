@@ -9,7 +9,7 @@ const source = readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8'
 
 // Render the shipped slot components without a DOM; their effects and button
 // handlers use the same fetch implementation as the browser client factory.
-function mountClient() {
+function mountClient(payloadFor = () => ({ config: { slots: [], codexFastMode: true }, revision: 7, accounts: [], providers: [] })) {
   const requests = []
   const slots = new Map()
   const states = new Map()
@@ -30,7 +30,7 @@ function mountClient() {
     setInterval: () => 1, clearInterval() {}, setTimeout: () => 1,
     fetch: async (path, options) => {
       requests.push({ path, options })
-      return { ok: true, json: async () => ({ config: { slots: [], codexFastMode: true }, revision: 7, accounts: [], providers: [] }) }
+      return { ok: true, json: async () => payloadFor(path, options) }
     },
   })
   const plugin = factory(name => name === 'react' ? React : {})
@@ -99,4 +99,29 @@ test('settings page reads and writes preserve methods, payload and revision with
   assert.ok(client.requests.some(row => row.path === '/dsh-subscriptions/telemetry'))
   assert.ok(client.requests.some(row => row.path === '/dsh-subscriptions/update'))
   for (const { options } of client.requests) assert.equal(options.referrerPolicy, 'no-referrer')
+})
+
+
+test('cache analysis uses protected management requests and renders the returned token totals', async () => {
+  const client = mountClient((path) => {
+    if (path.includes('/history?')) return { items: [{ promptTokens: 100, cachedTokens: 25, completionTokens: 10 }] }
+    if (path.endsWith('/analyze-session')) return { ok: true, analysis: { weightedCacheHitPercent: 25, savedTokens: 25, totalTokens: 110 } }
+    return { config: { slots: [] }, accounts: [], providers: [] }
+  })
+  const card = client.render(client.slots.get('plugins.row.config'), { view: 'page' }).tree
+  const section = find(card, node => node.type.name === 'SubsSection')
+  for (const effect of client.render(section.type, section.props).effects) effect()
+  await setImmediate()
+  const loaded = client.render(section.type, section.props).tree
+  const analyze = find(loaded, node => node.type === 'button' && node.children.includes('cacheAnalyze'))
+  assert.ok(analyze)
+  analyze.props.onClick()
+  await setImmediate()
+  const written = client.requests.find(row => row.path.endsWith('/analyze-session'))
+  assert.equal(written.options.method, 'POST')
+  assert.deepEqual(JSON.parse(written.options.body), { events: [{ usage: { promptTokens: 100, cachedTokens: 25, completionTokens: 10 } }] })
+  assert.ok(client.requests.some(row => row.path === '/dsh-subscriptions/history?limit=50'))
+  for (const { options } of client.requests) assert.equal(options.referrerPolicy, 'no-referrer')
+  const rendered = client.render(section.type, section.props).tree
+  assert.ok(find(rendered, node => node.children.includes('cacheHitRate: 25% · tokensSaved: 25 / 110')))
 })
