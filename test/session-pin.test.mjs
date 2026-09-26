@@ -1,6 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { pinSession, getPinnedAccountRef, unpinSession, clearSessionPins, pruneSessionPins } from '../lib/session-pin.js'
+import { pinSession, getPinnedAccountRef, pruneSessionPins } from '../lib/session-pin.js'
+
+const clearSessionPins = () => pruneSessionPins(Infinity)
 
 // #288 follow-up: session-pin had 34% coverage. Pin lifecycle matters
 // for account stickiness during a conversation.
@@ -28,10 +30,9 @@ test('pinning without session or account is a no-op', () => {
   assert.equal(getPinnedAccountRef(''), null)
 })
 
-test('expired pins are dropped on read', async () => {
+test('expired pins are dropped on read', () => {
   clearSessionPins()
-  pinSession('s3', 'REF_B', 1)
-  await new Promise((r) => setTimeout(r, 5))
+  pinSession('s3', 'REF_B', -1)
   assert.equal(getPinnedAccountRef('s3'), null)
   // and the entry is gone for good
   assert.equal(getPinnedAccountRef('s3'), null)
@@ -52,17 +53,4 @@ test('pruning drops expired pins while retaining live bindings', () => {
   assert.equal(getPinnedAccountRef('expired'), null)
   assert.equal(getPinnedAccountRef('live'), 'REF_LIVE')
   clearSessionPins()
-})
-
-test('unpin removes a single session, clear removes all', () => {
-  clearSessionPins()
-  pinSession('s5', 'REF_C')
-  pinSession('s6', 'REF_D')
-  unpinSession('s5')
-  assert.equal(getPinnedAccountRef('s5'), null)
-  assert.equal(getPinnedAccountRef('s6'), 'REF_D')
-  clearSessionPins()
-  assert.equal(getPinnedAccountRef('s6'), null)
-  unpinSession(undefined)
-  unpinSession('')
 })

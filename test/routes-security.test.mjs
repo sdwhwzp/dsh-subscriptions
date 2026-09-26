@@ -38,7 +38,7 @@ const res = () => {
 test('unknown provider is rejected with 404 before any request', async () => {
   const { proxy, requested } = harness()
   const r = res()
-  await proxy.handler({ method: 'GET', url: '/dsh-subscriptions/proxy/not-a-vendor/path', headers: {} }, r)
+  await proxy.handler({ method: 'GET', url: '/dsh-subscriptions/proxy/not-a-vendor/path', headers: { 'sec-fetch-site': 'same-origin' } }, r)
   assert.equal(r.code, 404)
   assert.equal(requested.length, 0)
 })
@@ -46,7 +46,7 @@ test('unknown provider is rejected with 404 before any request', async () => {
 test('dot-dot traversal is neutralized by URL normalization, never forwarded', async () => {
   const { proxy, requested } = harness()
   const r = res()
-  await proxy.handler({ method: 'GET', url: '/dsh-subscriptions/proxy/codex/../../admin/secret', headers: {} }, r)
+  await proxy.handler({ method: 'GET', url: '/dsh-subscriptions/proxy/codex/../../admin/secret', headers: { 'sec-fetch-site': 'same-origin' } }, r)
   assert.equal(r.code, 404, 'normalized path must not resolve to a valid provider')
   assert.equal(requested.length, 0)
 })
@@ -56,7 +56,7 @@ test('percent-encoded traversal is resolved by the URL parser and contained', as
   const r = res()
   // WHATWG URL resolves %2e%2e as a dot segment, so the normalized path
   // leaves no valid provider behind: the request is rejected, not forwarded.
-  await proxy.handler({ method: 'GET', url: '/dsh-subscriptions/proxy/codex/%2e%2e/other', headers: {} }, r)
+  await proxy.handler({ method: 'GET', url: '/dsh-subscriptions/proxy/codex/%2e%2e/other', headers: { 'sec-fetch-site': 'same-origin' } }, r)
   assert.equal(r.code, 404)
   assert.equal(requested.length, 0)
 })
@@ -64,7 +64,7 @@ test('percent-encoded traversal is resolved by the URL parser and contained', as
 test('a valid provider path is forwarded with the declared provider', async () => {
   const { proxy, requested } = harness()
   const r = res()
-  await proxy.handler({ method: 'GET', url: '/dsh-subscriptions/proxy/grok/v1/billing', headers: {} }, r)
+  await proxy.handler({ method: 'GET', url: '/dsh-subscriptions/proxy/grok/v1/billing', headers: { 'sec-fetch-site': 'same-origin' } }, r)
   assert.equal(requested.length, 1)
   assert.equal(requested[0].provider, 'grok')
   assert.equal(requested[0].path, '/v1/billing')

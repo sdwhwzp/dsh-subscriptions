@@ -102,7 +102,7 @@ for (const enabled of [false, true]) {
       const routed = await registered.promise
       let configBody
       await state.routes.find(row => row.path === '/dsh-subscriptions/config').handler(
-        { method: 'GET', headers: {} },
+        { method: 'GET', headers: { 'sec-fetch-site': 'same-origin' } },
         { writeHead() {}, end(body) { configBody = JSON.parse(body) } },
       )
       assert.deepEqual(configBody.accounts.map(account => account.healthScore), [100, 100])
@@ -301,5 +301,37 @@ test('Harness profile settings save against the owning entry and read its replac
     assert.equal(result.body.config.codexFastMode, true)
     assert.equal((await configRequest(state)).body.config.codexFastMode, true)
     assert.equal(edits.length, 1)
+  } finally { for (const off of state.cleanups.reverse()) off() }
+})
+
+test('saving the public settings preserves existing secrets and supports explicit replacement', async () => {
+  const mod = await loadPlugin()
+  const { ctx, state } = fakeCtx()
+  let config = mod.Config({
+    slots: [{ provider: 'codex', index: 1, proxyUrl: 'http://fixture-user:fixture-pass@proxy.invalid:8080' }],
+    antigravityClientSecret: 'fixture-google-secret',
+    customVendors: [{ id: 'fixture-provider', apiKey: 'fixture-key', headers: { Authorization: 'Bearer fixture-token' } }],
+    autoLoopback: false, ollamaFallback: false, probeIntervalMin: 0,
+  })
+  ctx.settings.register = () => ({ get: () => config, async replace(next) { config = next } })
+  mod.apply(ctx, config)
+  try {
+    const publicState = (await configRequest(state)).body.config
+    assert.equal(publicState.antigravityClientSecret, '••••••')
+    assert.equal(publicState.customVendors[0].apiKey, '••••••')
+    assert.equal(publicState.customVendors[0].headers.Authorization, '••••••')
+    const saved = await configRequest(state, 'PUT', { ...publicState, codexFastMode: true })
+    assert.equal(saved.status, 200)
+    assert.equal(config.codexFastMode, true)
+    assert.equal(config.antigravityClientSecret, 'fixture-google-secret')
+    assert.equal(config.slots[0].proxyUrl, 'http://fixture-user:fixture-pass@proxy.invalid:8080')
+    assert.equal(config.customVendors[0].apiKey, 'fixture-key')
+    assert.equal(config.customVendors[0].headers.Authorization, 'Bearer fixture-token')
+    const changed = await configRequest(state, 'PUT', { ...publicState, antigravityClientSecret: '' })
+    assert.equal(changed.status, 200)
+    assert.equal(config.antigravityClientSecret, '')
+    const moved = await configRequest(state, 'PUT', { ...publicState, slots: [{ ...publicState.slots[0], index: 2 }] })
+    assert.equal(moved.status, 400)
+    assert.equal(config.slots[0].index, 1)
   } finally { for (const off of state.cleanups.reverse()) off() }
 })

@@ -1,9 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { clearAlertsForTesting, checkQuotaThresholds, getRecentAlerts, notifySessionExpired, dispatchWebhookAlert } from '../lib/alerts.js'
+import { clearAlerts, checkQuotaThresholds, getRecentAlerts, notifySessionExpired, dispatchWebhookAlert } from '../lib/alerts.js'
 
 test('quota alerts deduplicate within their window and keep expiration separate', () => {
-  clearAlertsForTesting()
+  clearAlerts()
   try {
     const input = { provider: 'codex', ref: 'CODEX_OAUTH_1', usedPercent: 96, nowMs: 1_000_000 }
     assert.equal(checkQuotaThresholds({ ...input, usedPercent: 70 }), null)
@@ -14,7 +14,7 @@ test('quota alerts deduplicate within their window and keep expiration separate'
     assert.ok(checkQuotaThresholds({ ...input, nowMs: input.nowMs + 600_001 }))
     notifySessionExpired(input)
     assert.equal(getRecentAlerts().length, 3)
-  } finally { clearAlertsForTesting() }
+  } finally { clearAlerts() }
 })
 
 test('webhook delivery uses the injected transport and tolerates a failed receiver', async () => {

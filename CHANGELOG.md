@@ -1,6 +1,40 @@
 # Changelog
 
+## [0.6.23-dsh.20260926.1] - 2026-09-26
+
+- Uses the upstream adapter manager, account views, diagnostics, same-origin read checks, settings revisions, and expanded credential redaction.
+- Preserves namespaced providers, Claude probe filtering, committed settings snapshots, bounded retries, and V4 tool-history translation.
+- Keeps Antigravity client secrets and restores unchanged masked credentials when saving settings.
+
 Notable changes to `@goodandready/dsh-subscriptions`.
+
+## 0.6.23
+
+### Security & Privacy
+- **Credential Redaction in Public Config (#242, #252)**: redacted nested proxy URL credentials (`user:••••••@host`) and custom vendor credentials (`apiKey`, `token`, `secret`, `headers.Authorization`) in `publicConfig`; dropped `antigravityClientSecret` from Config schema.
+- **Fail-Closed Origin Validation (#341, #374)**: made `isTrustedSettingsRequest` fail-closed against absent origin headers on non-loopback clients; added 403 protection to `GET /config`, `GET /diagnostics`, and `GET /discover-local`.
+
+### Reliability & Concurrency
+- **Optimistic Concurrency on Config PUT (#379)**: added revision counter and CAS conflict detection on `PUT /config` returning 409 Conflict when saving from stale client revisions, with automatic draft reload in settings UI.
+- **Bounded History & Clean Teardown (#377, #378)**: capped in-memory request `HistoryStore` to 1000 entries with eviction, added `dispose()` method hooked to `ctx.on('dispose')`; effect-bound client settings slots for proper teardown.
+
+### UI & Theme Standards
+- **DSH Theme Tokens Migration (#320)**: converted all standalone `rgba(...)` and hex colors in `lib/client.js` to canonical DSH theme tokens (`var(--dsw-alias-state-*)`, `var(--dsw-alias-bg-*)`, `var(--dsw-alias-brand-primary)`), ensuring crisp readability across both light and dark themes.
+
+### Technical Debt & Packaging
+- **Modularization & Linter Zero-Debt (#372)**: reduced `lib/index.js` from 861 lines to 415 lines by extracting `lib/adapter-manager.js`, `lib/diagnostics.js`, and `lib/accounts-view.js`; eliminated all 40 linter warnings (`no-unused-vars` enabled as error); wired `healthBadge` into account models and UI; added production route `DELETE /alerts`.
+- **Localized Documentation Packaging (#375)**: included `README.ru.md` and `README.zh.md` in `package.json` `files` array for distribution on npm.
+
+## 0.6.22
+
+### Security
+- **Cross-site Protection on Read Routes (#371)**: added `isTrustedSettingsRequest(req)` origin check returning 403 Forbidden for cross-site requests (`sec-fetch-site: cross-site`, cross-origin `Origin`/`Referer`) on read endpoints:
+  - `GET /dsh-subscriptions/status`
+  - `GET /dsh-subscriptions/history`
+  - `GET /dsh-subscriptions/telemetry`
+  - `GET /dsh-subscriptions/alerts`
+  - `GET /dsh-subscriptions/reset-credits`
+  Added regression tests in `test/routes-security.test.mjs` covering cross-site rejection and same-origin acceptance.
 
 ## 0.6.21
 

@@ -59,11 +59,14 @@ test('readBody propagates stream errors', async () => {
   await assert.rejects(() => readBody(req, 1024), /boom/)
 })
 
-test('isTrustedSettingsRequest rejects cross-site only', () => {
+test('settings require same-origin metadata or a verified loopback peer', () => {
   assert.equal(isTrustedSettingsRequest({ headers: { 'sec-fetch-site': 'cross-site' } }), false)
   assert.equal(isTrustedSettingsRequest({ headers: { 'sec-fetch-site': 'same-origin' } }), true)
   assert.equal(isTrustedSettingsRequest({ headers: { 'sec-fetch-site': 'same-site' } }), true)
-  assert.equal(isTrustedSettingsRequest({ headers: {} }), true)
+  assert.equal(isTrustedSettingsRequest({ headers: {} }), false)
+  assert.equal(isTrustedSettingsRequest({ headers: {}, socket: { remoteAddress: '127.0.0.1' } }), true)
+  assert.equal(isTrustedSettingsRequest({ headers: {}, socket: { remoteAddress: '192.0.2.10' } }), false)
+  assert.equal(isTrustedSettingsRequest({ headers: { 'sec-fetch-site': 'same-origin', host: 'host.test', origin: 'https://other.test' } }), false)
 })
 
 test('settings fallback checks Origin and Referer against the request host', () => {

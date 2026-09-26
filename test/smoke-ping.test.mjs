@@ -18,8 +18,9 @@ function fakeCtx() {
 
 test('telemetry route returns summary object with 200', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'dsub-telemetry-'))
+  let history
   try {
-    const history = new HistoryStore(dir, 100000)
+    history = new HistoryStore(dir, 100000)
     history.add({ provider: 'codex', model: 'gpt-5', path: '/responses', status: 200, ms: 150 })
     history.add({ provider: 'claude', model: 'claude-3-7-sonnet', path: '/v1/messages', status: 500, ms: 300 })
 
@@ -48,7 +49,7 @@ test('telemetry route returns summary object with 200', async () => {
       setHeader() {},
     }
 
-    await telemetryRoute.handler({ method: 'GET', headers: {} }, res)
+    await telemetryRoute.handler({ method: 'GET', headers: { 'sec-fetch-site': 'same-origin' } }, res)
     assert.equal(statusCode, 200)
     assert.equal(payload.ok, true)
     assert.equal(payload.telemetry.totalRequests, 2)
@@ -57,14 +58,16 @@ test('telemetry route returns summary object with 200', async () => {
     assert.equal(payload.telemetry.successRate, 50)
     assert.equal(payload.telemetry.avgLatencyMs, 225)
   } finally {
+    history?.dispose()
     rmSync(dir, { recursive: true, force: true })
   }
 })
 
 test('smoke route returns 400 if no connected account', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'dsub-smoke-'))
+  let history
   try {
-    const history = new HistoryStore(dir, 100000)
+    history = new HistoryStore(dir, 100000)
     const { ctx, routes } = fakeCtx()
     registerStatusRoutes(ctx, {
       accountsView: async () => [],
@@ -92,7 +95,7 @@ test('smoke route returns 400 if no connected account', async () => {
 
     const req = {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
       on(event, handler) {
         if (event === 'data') handler(Buffer.from('{}'))
         if (event === 'end') handler()
@@ -103,6 +106,7 @@ test('smoke route returns 400 if no connected account', async () => {
     assert.equal(statusCode, 400)
     assert.equal(payload.ok, false)
   } finally {
+    history?.dispose()
     rmSync(dir, { recursive: true, force: true })
   }
 })
