@@ -1,5 +1,7 @@
 # 📦 @goodandready/dsh-subscriptions
 
+Region errors may retry the same account twice before rotation, provided no stream output has been delivered. Cancelling the request prevents further retries and account switches.
+
 This fork supports Harness 0.1.7 tool-role messages and imported OpenAI/Anthropic tool history across the shared provider translators, preserves call arguments and error results, and keeps provider namespaces separate from dsh-plugin-subscriptions. Codex marks unmatched calls as interrupted and omits orphan results from truncated history. Developer-role messages fail explicitly until supported.
 
 <div align="center">

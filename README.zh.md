@@ -1,5 +1,7 @@
 # 📦 @goodandready/dsh-subscriptions
 
+地区错误在尚未输出流内容时，最多先重试当前账号两次，再尝试轮换账号。取消请求后不再重试或切换账号。
+
 <div align="center">
 
 <h3>DeepSeek Harness 个人 AI 订阅桥接、多账号池轮换与零泄漏 OAuth 插件</h3>
