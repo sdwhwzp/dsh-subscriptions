@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.6.29-dsh.20260928.1] - 2026-09-28
+
+- Integrates upstream history, image handling, tool normalization, stream loop detection and quota notifications.
+- Preserves V4 tool-result errors, provider namespaces, Claude probe filtering and cancellation-safe account rotation.
+
 ## [0.6.23-dsh.20260926.1] - 2026-09-26
 
 - Uses the upstream adapter manager, account views, diagnostics, same-origin read checks, settings revisions, and expanded credential redaction.
@@ -7,6 +12,32 @@
 - Keeps Antigravity client secrets and restores unchanged masked credentials when saving settings.
 
 Notable changes to `@goodandready/dsh-subscriptions`.
+
+## 0.6.29
+
+### Fixes & Hardening
+- **Theme Variables in CSS (#406)**: replaced hardcoded hex fallback `#3b82f6` in `.dsub-speed-tag` styles with pure theme variable `var(--dsw-alias-brand-default)`.
+- **Runtime Quota Alerts & Session Expiration Wiring (#407)**: wired `checkQuotaThresholds` into adapter quota capture and `notifySessionExpired` into `streamWithRotation` on 401/`TOKEN_REVOKED` errors; dynamically resolved User-Agent from `package.json` in external webhook dispatcher.
+- **Snapshot Status in Settings PluginCard (#408)**: added handling of host configuration status in `PluginCard` (`props.status === loading` and `props.status === unavailable`) to comply with DSH slot contracts.
+- **Canonical Plugin Updater Aliases & Fail-Closed Validation (#409)**: registered canonical route aliases `/api/@goodandready/dsh-subscriptions/update` and `/api/dsh-subscriptions/update`; enforced strict fail-closed origin validation using `isTrustedSettingsRequest`.
+
+## 0.6.28
+
+### Features & Optimization
+- **Prompt Caching Prefix Stabilization & Ephemeral Controls (#400)**: normalized whitespace and CRLF line endings in system prompts and instructions; attached Anthropic ephemeral `cache_control` breakpoints to system text block, the last tool definition, and the second-to-last user conversation turn in multi-turn dialogues to achieve 90%+ cache hit rate and instant TTFT.
+- **Stream Runaway Circuit-Breaker Guard (#401)**: added `RunawayDetector` and `withRunawayGuard` in `lib/runaway-guard.js` to monitor live generation streams, automatically terminating with a clean `stop` finish chunk when consecutive repetitive tokens (>=30) or cyclic n-gram loops (>=6 repetitions) are detected, saving user quota and preventing UI lockups.
+- **Universal Tool Schema Normalizer (#403)**: implemented `normalizeTools` and `normalizeJsonSchema` in `lib/tools-normalizer.js`, stripping unsupported meta properties (`$schema`, `$id`), sanitizing function names (`^[a-zA-Z0-9_-]{1,64}), validating top-level object parameters, and pruning enum lists across OpenAI, Anthropic, Gemini, and Codex.
+- **Universal Multimodal Payload Normalizer (#404)**: added `extractImages` and vendor format converters in `lib/images.js` (`toOpenAiImage`, `toAnthropicImage`, `toGeminiImage`, `toCodexImage`), extracting and cross-converting data URIs, base64 payloads, and image URLs seamlessly for all vision models.
+
+## 0.6.27
+
+### Features & WebUI
+- **Live Quota Reset Countdown Timers (#394)**: added live relative countdown timers in account cards and header status chip (`formatRelativeReset`), parsing ISO timestamps and epoch formats from upstream quota windows to show exact time remaining until quota replenishment.
+- **TTFT & Token Generation Speed Telemetry (#395)**: tracked time-to-first-token (TTFT) and generation speed (tokens/sec) during streaming requests in adapter; aggregated metrics per slot in `HistoryStore` and surfaced live speed badges (`⚡ TTFT: 340ms · 45.2 t/s`) on account cards.
+- **Encrypted Profile Backup with PBKDF2 (#396)**: added export and import backup functionality using PBKDF2 (100k iterations, SHA-256) and AES-256-GCM (`DSHE2:`), maintaining backward compatibility with `DSHE1:` (scrypt); added user-friendly Export and Import modals in settings with direct file download (`.enc`) and clipboard copy.
+
+### Providers & OAuth
+- **GitHub Copilot Device Code Flow (#398)**: integrated official GitHub Copilot subscription provider via headless Device Code OAuth (`https://github.com/login/device`), automatic token capture and polling, model catalog (`claude-3.7-sonnet`, `gpt-4o`, `o1`, `o3-mini`), and local CLI session importer.
 
 ## 0.6.26
 
