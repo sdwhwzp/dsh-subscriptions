@@ -13,6 +13,33 @@
 
 Notable changes to `@goodandready/dsh-subscriptions`.
 
+## 0.6.33
+
+### Fixes & Hardening
+- **Cordis Logger Guard (#421)**: eliminated un-injected `ctx.log` reference in plugin entry point `lib/index.js` to strictly adhere to Cordis proxy invariants.
+- **Preflight Error Handling (#422)**: documented rationale for empty catch blocks in updater routines (`lib/updater.js`).
+- **Vendor Encapsulation (#423)**: encapsulated internal provider constants across `lib/vendors/*.js` to protect module boundaries.
+- **Design Contract Fix (#424)**: resolved duplicate word typo in `docs/design/DESIGN.md`.
+
+## 0.6.32
+
+### Fixes
+- **Cordis History Directory Invariant (#419)**: removed un-injected `ctx.historyDir` access in plugin entry point `lib/index.js` which triggered Cordis Context proxy trap on host startup; added regression guard testing `apply()` against strict Cordis context proxy.
+
+## 0.6.31
+
+### DevOps & Resilience
+- **Repository Hygiene & Worktree Pruning (#415)**: pruned merged and obsolete branches, removed stale `/tmp/pub-subs` worktree, and brought root checkout into sync with `origin/main`.
+- **Updater Lockfile Resilience & Supply-Chain Protection (#416)**: dropped `--config.minimumReleaseAge=0` override to preserve pnpm release-age protection; introduced PID-aware `package.json.lock` validation returning HTTP 409 Busy on concurrent installations and ensuring stale locks from terminated children are automatically cleaned up on timeout.
+
+## 0.6.30
+
+### Fixes & Security
+- **Test History Isolation Guard (#411)**: isolated test history storage directory (`resolveHistoryDir`) via `DSH_HISTORY_DIR`/`DSH_STORAGE_DIR`/`DSH_HOME` and added test setup guard ensuring production `~/.dsh` is never touched by unit test runs.
+- **Hermes Mentions Removal (#412)**: removed legacy references to Hermes agent from UI instructions, client placeholder hints, and CLI credential importer.
+- **Local Discovery Coding-Agent Configs Cleanup (#413)**: removed unsupported coding-agent configurations from local credential discovery to avoid importing incomplete or unroutable profiles.
+- **Vault Passphrase & Key Derivation Hardening (#414)**: enforced a minimum 12-character passphrase on vault token export with scrypt `N=131072` (DSHE3) and PBKDF2 600,000 iterations (DSHE2) while preserving backwards-compatible decryption for existing backups.
+
 ## 0.6.29
 
 ### Fixes & Hardening

@@ -266,7 +266,7 @@ Supports Anthropic's adaptive thinking (`thinking: { type: "adaptive" }`) and re
 
 ## 🚀 One-Click Plugin Updater & Stability Hardening (Added in v0.6.9)
 
-- **Host One-Click Updater**: Automatic in-place updater mounted at `/dsh-subscriptions/update`, checking the npm registry for newer releases and executing single-flight installation via the host DSH CLI (`dsh plugin add --config.minimumReleaseAge=0`).
+- **Host One-Click Updater**: Automatic in-place updater mounted at `/dsh-subscriptions/update`, checking the npm registry for newer releases and executing single-flight installation via the host DSH CLI (`dsh plugin add`).
 - **Security & Origin Protection**: Updater endpoints enforce strict loopback address checks (supporting IPv4 `127.0.0.1`, IPv6 `::1`, `localhost`), `x-dsh-plugin-update` header verification, and same-origin validation to prevent unauthorized updates.
 - **Header Badge & UI Action**: The settings header bar displays current plugin version, an update warning badge when a new release is detected, and an instant "Update" button with live restart countdown.
 - **Network Timeout Hardening**: Quota balance and smoke test probes now enforce guaranteed 15-second abort timeouts (`AbortSignal.timeout(15_000)`), preventing hanging sockets during vendor outages.
@@ -333,3 +333,6 @@ Public configuration reads redact proxy passwords and custom-provider keys and h
 Browser management requests omit the page Referer so gateways that rewrite Host can serve settings and account status. Relative same-origin URLs, cookies, Origin and Fetch Metadata checks, and administrator authorization remain in effect.
 
 Codex catalog requests use CLI identity version `0.157.1` by default; `codexClientVersion` overrides it. The fallback catalog includes GPT-6 Astra/Sol/Luna, GPT-5.6 Sol/Terra/Luna, and GPT-5.5. Cache analysis reads the latest 50 plugin history entries with token usage; records without token counts do not contribute. Its history and analysis requests use the same protected management routes as settings.
+## Harness 0.2 deployment
+
+This fork accepts Harness `0.2.0-rc.1` in addition to its existing runtime peer ranges. Deploy all Harness peers from one runtime release; account authorization, settings persistence, and browser/desktop behavior remain owned by the existing integrations.

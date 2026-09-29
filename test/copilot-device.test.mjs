@@ -8,11 +8,11 @@ test('Copilot device login exchanges the GitHub token and retains it for refresh
     requests.push({ url, init })
     if (url === copilot.COPILOT_DEVICE_CODE_URL) return Response.json({ user_code: 'USER-CODE', device_code: 'device-id', interval: 3, verification_uri: 'https://github.com/login/device' })
     if (url === copilot.COPILOT_DEVICE_TOKEN_URL) return Response.json({ access_token: 'github-token' })
-    if (url === copilot.COPILOT_TOKEN_URL) {
+    if (url === 'https://api.github.com/copilot_internal/v2/token') {
       assert.equal(init.headers.Authorization, 'Bearer github-token')
       return Response.json({ token: 'copilot-token', expires_at: 1900000000 })
     }
-    assert.equal(url, copilot.COPILOT_USER_URL)
+    assert.equal(url, 'https://api.github.com/user')
     assert.equal(init.headers.Authorization, 'Bearer github-token')
     return Response.json({ login: 'test-account', email: 'test@example.invalid' })
   }
@@ -23,7 +23,7 @@ test('Copilot device login exchanges the GitHub token and retains it for refresh
   assert.deepEqual(result.blob, { accessToken: 'copilot-token', refreshToken: 'github-token', githubToken: 'github-token', expiresAt: 1900000000000, label: 'test-account', email: 'test@example.invalid' })
   assert.equal(JSON.parse(requests[1].init.body).device_code, 'device-id')
   const refreshed = await copilot.refresh({}, result.blob, async (url, init) => {
-    assert.equal(url, copilot.COPILOT_TOKEN_URL)
+    assert.equal(url, 'https://api.github.com/copilot_internal/v2/token')
     assert.equal(init.headers.Authorization, 'Bearer github-token')
     return Response.json({ token: 'refreshed-token', expires_at: 1900000010 })
   })

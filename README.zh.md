@@ -159,7 +159,7 @@ dsh plugin --profile web add @goodandready/dsh-subscriptions
 
 ## 🚀 一键插件自更新与稳定性强化 (v0.6.9 新增)
 
-- **宿主端一键更新**: 挂载于 `/dsh-subscriptions/update` 的就地更新机制，自动对比 npm registry 最新版本并通过宿主 DSH CLI 执行单飞安装 (`dsh plugin add --config.minimumReleaseAge=0`)。
+- **宿主端一键更新**: 挂载于 `/dsh-subscriptions/update` 的就地更新机制，自动对比 npm registry 最新版本并通过宿主 DSH CLI 执行单飞安装 (`dsh plugin add`)。
 - **安全与来源防护**: 更新接口严格校验环回地址（支持 IPv4 `127.0.0.1`、IPv6 `::1`、`localhost`）、`x-dsh-plugin-update` 请求头及同源策略，阻断未授权跨站调用。
 - **状态栏徽章与更新按钮**: 设置面板顶部状态栏显示当前插件版本，有新版本时提示告警徽章并提供一键更新按钮与重启提示。
 - **网络超时熔断**: 配额检测与冒烟测试增加 15 秒超时信号保护 (`AbortSignal.timeout(15_000)`)，防止外部服务商接口故障导致请求挂起。
@@ -218,3 +218,6 @@ MIT © [GooDAnDReaDY](https://github.com/GooDAnDReaDY)
 浏览器管理请求不发送页面 Referer，使改写 Host 的网关仍能提供设置与账号状态。相对同源地址、Cookie、Origin 与 Fetch Metadata 检查及管理员授权继续生效。
 
 Codex 模型目录请求默认采用 CLI 身份版本 `0.157.1`，可用 `codexClientVersion` 覆盖。回退目录包含 GPT-6 Astra/Sol/Luna、GPT-5.6 Sol/Terra/Luna 和 GPT-5.5。缓存分析读取插件最近 50 条历史中的 Token 用量；没有 Token 计数的记录不参与统计。历史读取与分析请求遵守设置管理接口的同源及账号权限限制。
+## Harness 0.2 部署
+
+本 fork 在原有运行时范围之外支持 Harness `0.2.0-rc.1`。部署时所有 Harness 依赖必须来自同一版本；账号授权、配置持久化和网页／桌面功能继续使用现有集成。
