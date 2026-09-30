@@ -1,6 +1,9 @@
 import { test, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { HistoryStore } from '../lib/history.js'
+import { Config, plainConfig } from '../lib/config-schema.js'
+
+const configSnapshot = value => plainConfig(Config(value))
 import { Readable } from 'node:stream'
 import { setImmediate } from 'node:timers'
 
@@ -87,7 +90,7 @@ for (const enabled of [false, true]) {
   test(`chat fallback is opt-in and does not revisit a provider (enabled=${enabled})`, async () => {
     const mod = await loadPlugin()
     const { ctx, state } = fakeCtx()
-    const config = mod.Config({
+    const config = configSnapshot({
       slots: [{ provider: 'claude', index: 1 }, { provider: 'cursor', index: 1 }],
       cascadingFallback: enabled, cascadingChain: { claude: ['cursor'], cursor: ['claude'] },
       ollamaFallback: false, probeIntervalMin: 0,
@@ -190,7 +193,7 @@ for (const claimed of [false, true]) {
   test(`namespaced provider registration preserves other adapters (claimed=${claimed})`, async () => {
     const mod = await loadPlugin()
     const { ctx, state } = fakeCtx()
-    const config = mod.Config({ slots: [{ provider: 'codex', index: 1, ref: 'subscriptions.codex.1' }] })
+    const config = configSnapshot({ slots: [{ provider: 'codex', index: 1, ref: 'subscriptions.codex.1' }] })
     ctx.settings.register = () => ({ get: () => config, watch: () => () => {} })
     ctx.credentials.describe = async () => ({ configured: true })
     ctx.credentials.resolve = async () => null
@@ -224,7 +227,7 @@ async function configRequest(state, method = 'GET', config) {
 test('config reads use the cached snapshot until the owning document or watcher changes', async () => {
   const mod = await loadPlugin()
   const { ctx, state } = fakeCtx()
-  let config = mod.Config({ slots: [], autoLoopback: false, ollamaFallback: false, probeIntervalMin: 0 })
+  let config = configSnapshot({ slots: [], autoLoopback: false, ollamaFallback: false, probeIntervalMin: 0 })
   let reads = 0, watch
   ctx.settings.register = () => ({
     get() { reads++; return config },
@@ -251,7 +254,7 @@ test('config reads use the cached snapshot until the owning document or watcher 
 test('pending and rejected settings writes leave the active subscription config unchanged', async () => {
   const mod = await loadPlugin()
   const { ctx, state } = fakeCtx()
-  let config = mod.Config({ slots: [], autoLoopback: false, ollamaFallback: false, probeIntervalMin: 0 })
+  let config = configSnapshot({ slots: [], autoLoopback: false, ollamaFallback: false, probeIntervalMin: 0 })
   let started = Promise.withResolvers(), write = Promise.withResolvers()
   ctx.settings.register = () => ({
     get: () => config,
@@ -277,7 +280,7 @@ test('pending and rejected settings writes leave the active subscription config 
 test('Harness profile settings save against the owning entry and read its replacement fiber', async () => {
   const mod = await loadPlugin()
   const { ctx, state } = fakeCtx()
-  const config = mod.Config({ slots: [], autoLoopback: false, ollamaFallback: false, probeIntervalMin: 0 })
+  const config = configSnapshot({ slots: [], autoLoopback: false, ollamaFallback: false, probeIntervalMin: 0 })
   const entry = { fiber: { config } }
   ctx.fiber = { entry }
   ctx.settings = {}
@@ -308,7 +311,7 @@ test('Harness profile settings save against the owning entry and read its replac
 test('saving the public settings preserves existing secrets and supports explicit replacement', async () => {
   const mod = await loadPlugin()
   const { ctx, state } = fakeCtx()
-  let config = mod.Config({
+  let config = configSnapshot({
     slots: [{ provider: 'codex', index: 1, proxyUrl: 'http://fixture-user:fixture-pass@proxy.invalid:8080' }],
     antigravityClientSecret: 'fixture-google-secret',
     customVendors: [{ id: 'fixture-provider', apiKey: 'fixture-key', headers: { Authorization: 'Bearer fixture-token' } }],
@@ -335,4 +338,71 @@ test('saving the public settings preserves existing secrets and supports explici
     assert.equal(moved.status, 400)
     assert.equal(config.slots[0].index, 1)
   } finally { for (const off of state.cleanups.reverse()) off() }
+})
+
+test('modern settings keep stable plain snapshots until the owning document or volatile config changes', async () => {
+  const mod = await loadPlugin()
+  const { ctx, state } = fakeCtx()
+  let fast = false
+  const config = configSnapshot({ slots: [], autoLoopback: false, ollamaFallback: false, probeIntervalMin: 0 })
+  let current = { ...mod.Config(config), codexFastMode: { get: () => fast } }
+  let reads = 0
+  ctx.settings = { describe() { reads++; return [{ ns: 'dsh-subscriptions', value: current, revision: 3 }] } }
+  mod.apply(ctx, current)
+  try {
+    const subscriptions = state.provided.subscriptions
+    const initial = subscriptions.live()
+    assert.equal(initial.codexFastMode, false)
+    const initialReads = reads
+    fast = true
+    assert.equal(subscriptions.live(), initial)
+    state.listeners.get('settings/document-updated')('another-plugin')
+    assert.equal(subscriptions.live(), initial)
+    assert.equal(reads, initialReads)
+    state.listeners.get('settings/document-updated')('dsh-subscriptions')
+    assert.equal(subscriptions.live().codexFastMode, true)
+    current = { ...config, codexVerbosity: 'high' }
+    state.listeners.get('loader/volatile-update')()
+    assert.equal(subscriptions.live().codexVerbosity, 'high')
+    assert.equal(subscriptions.live().codexFastMode, false)
+  } finally { for (const off of state.cleanups.reverse()) off() }
+  assert.equal(state.listeners.has('loader/volatile-update'), false)
+  assert.equal(state.listeners.has('settings/document-updated'), false)
+})
+
+test('modern settings publish a new snapshot only after a revision-checked write succeeds', async () => {
+  const mod = await loadPlugin()
+  const { ctx, state } = fakeCtx()
+  let current = configSnapshot({ slots: [], autoLoopback: false, ollamaFallback: false, probeIntervalMin: 0 })
+  let revision = 5
+  let started = Promise.withResolvers(), write = Promise.withResolvers()
+  ctx.settings = {
+    describe: () => [{ ns: 'dsh-subscriptions', value: current, revision }],
+    async update(ns, next, expected) {
+      assert.equal(ns, 'dsh-subscriptions')
+      assert.equal(expected, revision)
+      assert.equal(typeof next.codexFastMode, 'boolean')
+      started.resolve()
+      await write.promise
+      current = next
+      revision++
+    },
+  }
+  mod.apply(ctx, current)
+  try {
+    const before = state.provided.subscriptions.live()
+    const rejected = configRequest(state, 'PUT', { ...current, codexFastMode: true })
+    await started.promise
+    assert.equal(state.provided.subscriptions.live(), before)
+    write.reject(new Error('fixture modern persistence failure'))
+    assert.equal((await rejected).status, 400)
+    assert.equal(state.provided.subscriptions.live(), before)
+    started = Promise.withResolvers(); write = Promise.withResolvers()
+    const accepted = configRequest(state, 'PUT', { ...current, codexFastMode: true })
+    await started.promise
+    write.resolve()
+    assert.equal((await accepted).status, 200)
+    assert.equal(state.provided.subscriptions.live().codexFastMode, true)
+    assert.equal(revision, 6)
+  } finally { write.resolve(); for (const off of state.cleanups.reverse()) off() }
 })

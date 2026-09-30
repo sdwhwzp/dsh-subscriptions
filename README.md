@@ -320,7 +320,7 @@ Provider startup retries compare namespaced routes, stop after disposal, and rem
 
 Subscription requests read a cached configuration snapshot. Settings document events and watchers refresh that snapshot; explicit writes refresh it only after persistence succeeds. A pending or failed write keeps the previous active configuration.
 
-On Harness 0.1.7, subscription settings persist through the owning profile entry's ConfigEditor. Native plugin reconfiguration applies the saved values; hosts exposing the older settings registration API retain that integration.
+On Harness 0.1.7 and 0.2, subscription settings use the host's schema-derived describe/update service and its revision checks. Volatile values are exposed as a cached plain snapshot; configuration events refresh adapters and custom vendors. The older registration and profile-editor integrations remain available where the host lacks that service.
 
 Copilot supports device-code login and token refresh. Account probes use the selected account's proxy, and quota refresh runs in the background without delaying the first model response. Settings writes retain the deployed administrator check and validate Origin or Referer when the browser omits Fetch Metadata.
 

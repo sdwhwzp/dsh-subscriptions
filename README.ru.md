@@ -287,3 +287,5 @@ MIT © [GooDAnDReaDY](https://github.com/GooDAnDReaDY)
 ## Harness 0.2 deployment
 
 This fork accepts Harness `0.2.0-rc.1` in addition to its existing runtime peer ranges. Deploy all Harness peers from one runtime release; account authorization, settings persistence, and browser/desktop behavior remain owned by the existing integrations.
+
+В Harness 0.1.7 и 0.2 настройки сохраняются через сервис describe/update с проверкой ревизии. Динамические значения читаются из обычного кэшированного снимка; события конфигурации обновляют адаптеры. До успешного сохранения остаётся прежняя конфигурация. Для старых хостов сохранены прежние интерфейсы регистрации и редактирования профиля.

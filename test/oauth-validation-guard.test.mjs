@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { buildAuthorizeUrl } from '../lib/oauth.js'
 import { getVendor } from '../lib/vendors/index.js'
-import { Config, publicConfig } from '../lib/config-schema.js'
+import { Config, plainConfig, publicConfig } from '../lib/config-schema.js'
 
 test('buildAuthorizeUrl throws if clientId is missing or empty', () => {
   assert.throws(
@@ -66,7 +66,7 @@ test('config schema includes antigravityClientSecret and redacts it in publicCon
   assert.ok(schemaKeys.includes('antigravityClientSecret'), 'antigravityClientSecret must exist in Config')
   assert.ok(schemaKeys.includes('antigravityClientId'), 'antigravityClientId must exist in Config')
 
-  const parsed = Config({ antigravityClientId: 'my-id', antigravityClientSecret: 'super-secret' })
+  const parsed = plainConfig(Config({ antigravityClientId: 'my-id', antigravityClientSecret: 'super-secret' }))
   assert.equal(parsed.antigravityClientSecret, 'super-secret')
 
   const pub = publicConfig(parsed)
