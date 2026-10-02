@@ -49,12 +49,12 @@ test("when all below threshold, fallback to first exhausted", () => {
   assert.equal(pick.ref, "A")
 })
 
-test("cooldown still skipped before exhausted, but fallback if only cooldown left", () => {
+test("active cooldowns are excluded even when other accounts are below the soft threshold", () => {
   const now = 1000
   const cool = { ref: "C", hasToken: true, quota: { remaining: 50, limit: 100 }, cooldownUntil: now+60000 }
   const exhausted = { ref: "E", hasToken: true, quota: { remaining: 1, limit: 100, resetAt: now+60000 }, cooldownUntil: 0 }
-  // with threshold, both are tier 2, first wins
-  assert.equal(pickAccount([cool, exhausted], now, { switchAtRemaining: 5 }).ref, "C")
+  // A usable account below the soft threshold still precedes a locked account.
+  assert.equal(pickAccount([cool, exhausted], now, { switchAtRemaining: 5 }).ref, "E")
   // without threshold, cooldown is tier 2, good is tier 0
   const good = { ref: "G", hasToken: true, quota: { remaining: 50, limit: 100 }, cooldownUntil: 0 }
   assert.equal(pickAccount([cool, good], now, { switchAtRemaining: 5 }).ref, "G")

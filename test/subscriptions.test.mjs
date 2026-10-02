@@ -90,6 +90,7 @@ test("subscriptions request succeeds and captures quota", async () => {
     }
   })
   const res = await svc.request({ provider: "codex", path: "/responses", method: "POST", body: { model: "x" } })
+  await res.text()
   assert.equal(res.ok, true)
   assert.ok(captured && captured.remaining === 5)
 })
@@ -129,6 +130,7 @@ test("subscriptions request rotates on 429", async () => {
     }
   })
   const res = await svc.request({ provider: "codex", path: "/responses" })
+  await res.text()
   assert.equal(res.ok, true)
   assert.equal(calls, 2)
 })

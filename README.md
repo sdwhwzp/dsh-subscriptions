@@ -320,7 +320,7 @@ Provider startup retries compare namespaced routes, stop after disposal, and rem
 
 Subscription requests read a cached configuration snapshot. Settings document events and watchers refresh that snapshot; explicit writes refresh it only after persistence succeeds. A pending or failed write keeps the previous active configuration.
 
-On Harness 0.1.7 and 0.2, subscription settings use the host's schema-derived describe/update service and its revision checks. Volatile values are exposed as a cached plain snapshot; configuration events refresh adapters and custom vendors. The older registration and profile-editor integrations remain available where the host lacks that service.
+On Harness 0.1.7 and 0.2, subscription settings use the host's schema-derived describe/update service and its revision checks. Volatile values are exposed as a cached plain snapshot; configuration events refresh adapters and custom vendors. The older registration and profile-editor integrations remain available where the host lacks that service. Configuration reads return a revision; writes must include it and receive HTTP 428 when absent or HTTP 409 when stale, including concurrent changes detected during persistence. A conflict leaves the active snapshot unchanged and the settings page reloads the current configuration.
 
 Copilot supports device-code login and token refresh. Account probes use the selected account's proxy, and quota refresh runs in the background without delaying the first model response. Settings writes retain the deployed administrator check and validate Origin or Referer when the browser omits Fetch Metadata.
 
@@ -332,7 +332,7 @@ Public configuration reads redact proxy passwords and custom-provider keys and h
 
 Browser management requests omit the page Referer so gateways that rewrite Host can serve settings and account status. Relative same-origin URLs, cookies, Origin and Fetch Metadata checks, and administrator authorization remain in effect.
 
-Codex catalog requests use CLI identity version `0.157.1` by default; `codexClientVersion` overrides it. The fallback catalog includes GPT-6 Astra/Sol/Luna, GPT-5.6 Sol/Terra/Luna, and GPT-5.5. Cache analysis reads the latest 50 plugin history entries with token usage; records without token counts do not contribute. Its history and analysis requests use the same protected management routes as settings.
+Codex catalog requests use CLI identity version `0.160.0` by default; `codexClientVersion` overrides it. The fallback catalog includes GPT-6 Astra/Sol/Luna, GPT-5.6 Sol/Terra/Luna, and GPT-5.5. Cache analysis reads the latest 50 plugin history entries with token usage; records without token counts do not contribute. Its history and analysis requests use the same protected management routes as settings.
 ## Harness 0.2 deployment
 
-This fork accepts Harness `0.2.0-rc.1` in addition to its existing runtime peer ranges. Deploy all Harness peers from one runtime release; account authorization, settings persistence, and browser/desktop behavior remain owned by the existing integrations.
+This fork accepts Harness `0.2.0-rc.1` and `0.2.0-rc.2` in addition to its existing runtime peer ranges. Deploy all Harness peers from one runtime release; account authorization, settings persistence, and browser/desktop behavior remain owned by the existing integrations.

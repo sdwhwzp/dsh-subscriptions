@@ -53,7 +53,7 @@ test('OpenAI missing ids and Google omitted counters remain serializable', async
   assert.equal(calls.find(chunk => chunk.type === 'tool-call-delta').id, 'call_0')
   const google = await collect(googleStream(sse([{ usageMetadata: { promptTokenCount: 7 } }])))
   const usage = google.find(chunk => chunk.type === 'usage').usage
-  assert.deepEqual(JSON.parse(JSON.stringify(usage)), { input: 7, output: 0 })
+  assert.deepEqual(JSON.parse(JSON.stringify(usage)), { promptTokenCount: 7, inputTokens: 7, outputTokens: 0, input: 7, output: 0 })
 })
 
 test('Gemini enum removes blank and repeated choices but preserves usable values', () => {

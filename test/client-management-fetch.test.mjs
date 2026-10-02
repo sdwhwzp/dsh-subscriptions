@@ -119,7 +119,7 @@ test('cache analysis uses protected management requests and renders the returned
   await setImmediate()
   const written = client.requests.find(row => row.path.endsWith('/analyze-session'))
   assert.equal(written.options.method, 'POST')
-  assert.deepEqual(JSON.parse(written.options.body), { events: [{ usage: { promptTokens: 100, cachedTokens: 25, completionTokens: 10 } }] })
+  assert.deepEqual(JSON.parse(written.options.body), { events: [{ usage: { promptTokens: 100, cachedTokens: 25, completionTokens: 10, inputTokens: 100, cacheReadTokens: 25, outputTokens: 10 } }] })
   assert.ok(client.requests.some(row => row.path === '/dsh-subscriptions/history?limit=50'))
   for (const { options } of client.requests) assert.equal(options.referrerPolicy, 'no-referrer')
   const rendered = client.render(section.type, section.props).tree

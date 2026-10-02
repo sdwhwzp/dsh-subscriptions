@@ -17,7 +17,8 @@ test('history row carries ms timing', async () => {
     recordHistory: (entry) => { row = entry },
     fetchImpl: async () => ({ ok: true, status: 200, headers: { get: () => null, forEach: () => {} }, text: async () => '{}', clone: () => ({ text: async () => '{}' }) }),
   })
-  await svc.request({ provider: 'codex', path: '/responses', method: 'POST', body: { model: 'x' } })
+  const response = await svc.request({ provider: 'codex', path: '/responses', method: 'POST', body: { model: 'x' } })
+  await response.text()
   assert.ok(row, 'recordHistory called')
   assert.equal(typeof row.ms, 'number')
   assert.ok(row.ms >= 0)

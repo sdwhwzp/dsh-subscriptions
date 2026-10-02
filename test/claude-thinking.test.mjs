@@ -46,7 +46,7 @@ test('effortLevelsForModel gates levels by family and generation', () => {
 })
 
 test('claude listModels advertises reasoning efforts on adaptive models only', async () => {
-  const rows = await getVendor('claude').listModels(BLOB, {})
+  const rows = await getVendor('claude').listModels(BLOB, {}, async () => Response.json({ data: [] }))
   const byId = Object.fromEntries(rows.map((row) => [row.id, row]))
   assert.deepEqual(byId['claude-opus-5'].reasoning.efforts.map((e) => e.id), ['low', 'medium', 'high', 'xhigh', 'max'])
   assert.deepEqual(byId['claude-sonnet-5'].reasoning.efforts.map((e) => e.id), ['low', 'medium', 'high'])

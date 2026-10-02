@@ -15,7 +15,7 @@ test('Codex CLI version configuration reaches both model catalog and identity ch
   const { Config, plainConfig } = await import('../lib/config-schema.js')
   const { vendorConfig } = await import('../lib/accounts.js')
   const { getVendor } = await import('../lib/vendors/index.js')
-  for (const [override, expected] of [['', '0.157.1'], [' 0.158.0 ', '0.158.0']]) {
+  for (const [override, expected] of [['', '0.160.0'], [' 0.158.0 ', '0.158.0']]) {
     const config = vendorConfig('codex', plainConfig(Config({ codexClientVersion: override })))
     const urls = []
     const fetchImpl = async url => { urls.push(url); return Response.json({ models: [{ slug: 'gpt-6-astra', visibility: 'list' }] }) }

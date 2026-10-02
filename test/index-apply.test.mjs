@@ -213,6 +213,9 @@ for (const claimed of [false, true]) {
 }
 
 async function configRequest(state, method = 'GET', config) {
+  if (config && method === 'PUT' && !Object.hasOwn(config, 'revision')) {
+    config = { ...config, revision: (await configRequest(state)).body.revision }
+  }
   const req = Readable.from(config ? [Buffer.from(JSON.stringify(config))] : [])
   req.method = method
   req.headers = { 'sec-fetch-site': 'same-origin' }
@@ -240,10 +243,10 @@ test('config reads use the cached snapshot until the owning document or watcher 
     config = { ...config, codexFastMode: true }
     state.listeners.get('settings/document-updated')('another-plugin')
     assert.equal((await configRequest(state)).body.config.codexFastMode, false)
-    assert.equal(reads, initialReads)
+    assert.ok(reads > initialReads)
     state.listeners.get('settings/document-updated')('dsh-subscriptions')
     assert.equal((await configRequest(state)).body.config.codexFastMode, true)
-    assert.equal(reads, initialReads + 1)
+    assert.ok(reads > initialReads + 1)
     config = { ...config, codexFastMode: false }
     watch(config)
     assert.equal((await configRequest(state)).body.config.codexFastMode, false)
@@ -360,6 +363,7 @@ test('modern settings keep stable plain snapshots until the owning document or v
     assert.equal(subscriptions.live(), initial)
     assert.equal(reads, initialReads)
     state.listeners.get('settings/document-updated')('dsh-subscriptions')
+    assert.ok(reads > initialReads)
     assert.equal(subscriptions.live().codexFastMode, true)
     current = { ...config, codexVerbosity: 'high' }
     state.listeners.get('loader/volatile-update')()
@@ -405,4 +409,33 @@ test('modern settings publish a new snapshot only after a revision-checked write
     assert.equal(state.provided.subscriptions.live().codexFastMode, true)
     assert.equal(revision, 6)
   } finally { write.resolve(); for (const off of state.cleanups.reverse()) off() }
+})
+
+test('settings writes reject missing or stale revisions and durable write conflicts without replacing the snapshot', async () => {
+  const mod = await loadPlugin()
+  const { ctx, state } = fakeCtx()
+  const current = configSnapshot({ slots: [], autoLoopback: false, ollamaFallback: false, probeIntervalMin: 0 })
+  let revision = 9, writes = 0
+  ctx.settings = {
+    describe: () => [{ ns: 'dsh-subscriptions', value: current, revision }],
+    async update() {
+      writes++
+      revision++
+      throw Object.assign(new Error('settings namespace changed since it was read'), { code: 'SETTINGS_CONFLICT' })
+    },
+  }
+  mod.apply(ctx, current)
+  try {
+    const before = state.provided.subscriptions.live()
+    const missing = await configRequest(state, 'PUT', { ...current, revision: undefined })
+    assert.equal(missing.status, 428)
+    const stale = await configRequest(state, 'PUT', { ...current, revision: 8 })
+    assert.equal(stale.status, 409)
+    assert.equal(writes, 0)
+    const raced = await configRequest(state, 'PUT', { ...current, codexFastMode: true, revision: 9 })
+    assert.equal(raced.status, 409)
+    assert.equal(raced.body.error.currentRevision, 10)
+    assert.equal(writes, 1)
+    assert.equal(state.provided.subscriptions.live(), before)
+  } finally { for (const off of state.cleanups.reverse()) off() }
 })
