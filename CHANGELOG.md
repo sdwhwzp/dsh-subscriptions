@@ -1,3 +1,22 @@
+## [0.6.51] - 2026-10-02
+
+### Fixed
+- **Antigravity CLI Expiry Normalization (GH #13, #478)**: Normalize ISO 8601 string expiry (including nanoseconds and timezone offsets), epoch seconds, and epoch milliseconds into numeric Unix milliseconds in `lib/blob.js`, preventing `Number(ISODateString) === NaN -> 0` and eliminating premature immediate refresh cycles.
+- **Antigravity OAuth Client ID Extraction & Retention (GH #13, #478)**: Safely extract Google OAuth Client ID from `id_token` JWT `aud`/`azp` metadata when direct fields are absent; preserve `clientId`, `clientSecret`, and `idToken` across serialization cycles in `lib/blob.js`.
+- **Antigravity Refresh Guard (GH #13, #478)**: In `lib/vendors/antigravity.js::refresh()`, prioritize `cfg.clientId` over `blob.clientId`, guard against missing client ID with an early descriptive error to prevent Google OAuth HTTP 400 (`invalid_request: Could not determine client ID from request`), and retain client metadata across token refreshes.
+- **CLI Discovery (#478)**: Detect local credentials from `~/.gemini/oauth_creds.json` in addition to CLI proxy paths.
+
+## [0.6.50] - 2026-10-02
+
+### Fixed & Hardened (Round 3 Audit Resolution)
+- **HTTP / Routes (#374)**: Strict fail-closed authentication on sensitive routes (`/config`, `/status`), reject unauthenticated remote requests with matching host, exact cookie token lookup, and safe Cordis context connection access.
+- **Accounts / Credentials (#442)**: Prevent credential resurrection after logout when in-flight `saveBlob` resolves, unconditionally executing `credentials.unset`.
+- **Rotation / Quarantine (#350)**: Expired quarantine accounts require active warmup micro-probe (`vendor.check`) before returning to the active rotation pool, with exponential backoff on probe failure.
+- **Quota / Forecast (#352)**: Record sliding-window `quotaSamples` from actual quota snapshots, calculate `pacePerHour` via `calculateBurnRatePerHour`, and populate backend pacing inputs for `computePacingRisk`.
+- **UI / Client (#459)**: Resilient "All Settings" navigation in SubsPill to DSH 0.2 Plugins package card via native capability and standard `PLUGIN_LABELS` / `data-plugin-package` title button triggers.
+- **Documentation (#434)**: Synchronize `docs/design/DESIGN.md` active version to 0.6.50, update slot architecture (`plugins.bundle.config`, `plugins.row.config`, `conversation.session.header.actions`).
+- **Distribution (#326)**: Release v0.6.50 to npm public registry and migrate production runtime from file tgz dependency.
+
 ## [0.6.49] - 2026-10-02
 
 ### Fixed & Enhanced
