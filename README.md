@@ -336,3 +336,5 @@ Codex catalog requests use CLI identity version `0.160.0` by default; `codexClie
 ## Harness 0.2 deployment
 
 This fork accepts Harness `0.2.0-rc.1` and `0.2.0-rc.2` in addition to its existing runtime peer ranges. Deploy all Harness peers from one runtime release; account authorization, settings persistence, and browser/desktop behavior remain owned by the existing integrations.
+
+The 0.6.58 fork retains namespaced adapters when the LLM registry appears late. Optional quota draining prioritizes expiring balances while respecting cooldowns; provider requests normalize paths before dispatch. Claude model discovery distinguishes OAuth tokens from API keys. The fork keeps its local test launcher because the sanitized upstream release does not include its referenced test setup module.
