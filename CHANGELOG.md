@@ -1,3 +1,82 @@
+## [0.6.60] - 2026-10-07
+
+### Fixed & Enhanced
+- **Antigravity Client Secret Configuration Schema (#515, GH #16)**:
+  - Added `antigravityClientSecret: z.string().role("secret").default("")` to `Config` schema in `lib/config-schema.js`, allowing users to enter custom Google OAuth client secrets without schemastery dropping them.
+  - Fully integrated with `publicConfig` redaction (`••••••`) and `restoreMaskedSecrets` preservation.
+- **Resilient CLI Token Refresh & Default Public Client Credentials (#515, GH #16)**:
+  - Added default public application credentials for the standard Gemini / Antigravity CLI client (`Google Gemini CLI Client ID` / `Google Gemini CLI Client Secret`) in `lib/vendors/antigravity.js` and `lib/import-auth.js`.
+  - Imported CLI sessions now refresh tokens smoothly without expiring after 1 hour or requiring manual secret input.
+  - Hardened error handling in `antigravity.js::refresh()`: replaces raw HTTP 400 errors with actionable guidance to configure `antigravityClientSecret` when client secret is required by a custom OAuth client.
+- **Windows Credential Manager CLI Discovery (#515, GH #16)**:
+  - Added Windows Credential Manager target `gemini:antigravity` inspection on `win32` platform in `lib/import-auth.js`, enabling `📥 From CLI` to discover active CLI sessions directly when `agy` stores credentials in Windows Credential Manager.
+
+## [0.6.59] - 2026-10-06
+
+### Added & Enhanced (Sprint 1: Quarantine Control, Quota Countdown & In-App Alerts)
+- **Manual Quarantine Control & Instant Warmup Probe (#509)**:
+  - Added HTTP endpoints `POST /dsh-subscriptions/quarantine/park` and `POST /dsh-subscriptions/quarantine/probe`.
+  - Added UI actions in account slot cards: `⏸ Park` (manually quarantine an active account for 1 hour for maintenance/debugging), `🔄 Probe Now` (trigger immediate warmup micro-probe via `probeWarmup` with `force=true`), and `✕ Release` (immediately clear quarantine state).
+  - Added canonical reason `REASON_MANUAL_PARK` in `lib/quarantine.js`.
+- **Live Quota Reset Countdown Timers (#506)**:
+  - Added real-time per-second countdown timer `ResetCountdown` in `SubsPill` and account cards in settings.
+  - Automatically calculates remaining time until rolling quota reset window (`account.quota.resetAt`, `five_hour`, `seven_day`, `primary_window`) using canonical `formatRelativeReset`.
+- **In-App Toast Alerts & Webhook Notifications (#510)**:
+  - Added lightweight non-intrusive floating toast alerts (`.dsub-toast-container` / `.dsub-toast`) in DSH chat interface, styled with canonical `--dsw-alias-state-*` tokens.
+  - Added `notifyQuarantineEntered` and `notifyQuarantineReleased` helpers in `lib/alerts.js` with automatic translation to in-app toasts and optional external webhook alerts.
+  - Added `enableToasts: z.boolean().default(true)` in configuration schema to allow toggling popup notifications.
+
+## [0.6.58] - 2026-10-06
+
+### Fixed
+- **Theme Contract & Canonical CSS Tokens (#501, #504)**:
+  - Replaced legacy CSS custom properties with canonical `--dsw-alias-*` tokens across `lib/client.js`.
+  - Added automated theme contract guard `test/theme-contract.test.mjs` ensuring zero unmapped or hardcoded color tokens in frontend styles.
+
+## [0.6.57] - 2026-10-06
+
+### Fixed
+- **Claude OAuth Protocol & Billing Header (#498, #499, #500, GH #14, GH #15)**:
+  - Use `Bearer` authentication for Claude OAuth models and inject required billing headers.
+  - Isolate `extra_usage` metadata parsing to prevent unexpected upstream protocol divergences.
+
+## [0.6.56] - 2026-10-05
+
+### Fixed & Hardened
+- **Vendor Configuration Schema & Adapter Security (#489, #493, #494, #497)**:
+  - Explicitly declare vendor settings in schema with strict input validation.
+  - Harden custom vendor URLs against SSRF and guard internal adapter host API.
+
+## [0.6.55] - 2026-10-05
+
+### Security
+- **Security Hardening & Token Protection (#487, #488, #490, #491, #492)**:
+  - Resolve path traversal vectors in static and export handlers.
+  - Implement constant-time comparison for token and secret verification.
+  - Guard OAuth redirect trusts against header poisoning.
+
+## [0.6.54] - 2026-10-04
+
+### Added
+- **Smart Quota Drainer Balancing Strategy (#485, #486)**:
+  - Implement `drainBeforeReset` strategy to prioritize accounts nearing rolling quota reset windows.
+  - Configurable `drainSafetyPercent` threshold to avoid sudden 429 exhaustion before window resets.
+
+## [0.6.53] - 2026-10-03
+
+### Fixed
+- **Zero-Cyrillic Contract in Frontend Client (#318, #483)**:
+  - Eliminate Cyrillic string literals from navigation helpers in `lib/client.js`.
+  - Pass automated contract guard `test/contract-guards.test.mjs` with 0 Cyrillic characters in `lib/*.js`.
+
+## [0.6.52] - 2026-10-03
+
+### Fixed & Hardened
+- **Quarantine Warmup Contract & Pacing Isolation (#350, #352, #459, #481)**:
+  - Canonical 3-argument signature for `vendor.check(blob, cfg, fetchImpl)`.
+  - Isolate quota reset windows in auto-pacing sample calculations.
+  - Multilingual navigation resilience in DSH 0.2 Settings dialog.
+
 ## [0.6.51] - 2026-10-02
 
 ### Fixed

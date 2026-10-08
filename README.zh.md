@@ -122,6 +122,18 @@ graph LR
 * **匿名诊断报告**：设置卡片内一键生成（插件/运行时版本、系统、各供应商健康状态、HTTP 状态聚合、最近错误与耗时、非敏感配置）并自动复制到剪贴板；令牌、邮箱、凭据名与代理地址严格排除。
 * 同区块提供问题追踪器链接，便于提交 issue。
 
+### 隔离管理、动态额度重置倒计时与应用内弹窗提醒 (v0.6.59)
+* **手动隔离管理（暂停与预热探测）**：支持在设置面板的账户卡片中一键暂停隔离活跃账户（`POST /dsh-subscriptions/quarantine/park`），或立即触发真实上游预热微探测（`probeWarmup`）并在验证成功后即时解除隔离（`POST /dsh-subscriptions/quarantine/probe`）。
+* **动态额度重置倒计时**：在顶部会话栏 `SubsPill` 和账户卡片中秒级动态更新，精准展示滚动配额窗口（`five_hour`、`seven_day`、`primary_window`）的剩余解锁时间。
+* **应用内即时弹窗提醒（Toast）**：当账户进入隔离、健康恢复解除隔离或额度达到预警线时，在聊天界面弹出轻量级浮动提醒。通过 `enableToasts: true` 控制。
+* **自动化 Webhook 告警集成**：通过 `notifyQuarantineEntered` 与 `notifyQuarantineReleased` 自动向外部通知系统派发隔离生命周期事件。
+
+### Antigravity 客户端密钥架构与无感 CLI 令牌刷新 (v0.6.60)
+* **配置架构密钥字段 (`antigravityClientSecret`)**：支持用户在设置中自定义配置 Google Cloud OAuth 客户端密钥（Client Secret），公共接口自动脱敏掩码 (`••••••`)，彻底解决机密型 OAuth 客户端刷新令牌被拒的问题。
+* **CLI 令牌零配置平滑刷新**：内置官方 Gemini / Antigravity CLI 客户端的公共应用凭据 (`Google Gemini CLI Client ID` / `Google Gemini CLI Client Secret`)，使通过 `📥 从 CLI 导入` 的会话能够持久无限刷新，不再出现 1 小时后失效问题。
+* **Windows 凭据管理器自动发现**：原生支持在 `win32` 系统下自动检测 Windows 凭据管理器中的 `gemini:antigravity` 目标，直接完成 CLI 会话导入。
+* **清晰明确的错误指引**：在缺少密钥或上游凭据异常时抛出指引性错误，替代原始的 HTTP 400 提示。
+
 ### HTTP API 路由（`v0.4.9`）
 | 路由 | 方法 | 用途 |
 |---|---|---|
@@ -129,6 +141,9 @@ graph LR
 | `/dsh-subscriptions/proxy-check` | POST | 检测槽位代理到供应商基础地址的延迟 |
 | `/dsh-subscriptions/oauth/device/start` | POST | 发起 Codex 设备码登录（返回用户码与验证地址） |
 | `/dsh-subscriptions/oauth/device/poll` | POST | 轮询设备码授权状态 |
+| `/dsh-subscriptions/quarantine/park` | POST | 将指定账户临时暂停隔离（支持 `durationMs` 与 `reason`） |
+| `/dsh-subscriptions/quarantine/probe` | POST | 立即执行健康预热探测或提前解除账户隔离 |
+| `/dsh-subscriptions/alerts` | GET | 获取近期应用内告警与通知列表 |
 
 ---
 
@@ -225,3 +240,5 @@ Codex 模型目录请求默认采用 CLI 身份版本 `0.160.0`，可用 `codexC
 Harness 0.1.7 和 0.2 的设置通过宿主 describe/update 服务及版本检查持久保存。动态配置先转换为普通值并缓存，配置事件会刷新适配器与自定义供应商；等待保存或保存失败时继续使用原配置。缺少该服务的宿主仍可使用已有注册接口或配置编辑器。读取配置返回版本号，保存时必须携带该版本；缺失返回 HTTP 428，版本过期或持久化期间发生并发修改返回 HTTP 409。冲突不会替换当前生效的配置，设置页面会重新读取最新配置。
 
 0.6.58 fork 在模型注册表延迟出现时仍使用独立模型路由。可选的额度优先消耗遵守账号冷却限制；服务商请求在发送前规范化路径。Claude 模型发现区分 OAuth 令牌与 API Key。上游公开源码未包含测试启动文件，因此本 fork 保留现有本地测试启动方式。
+
+0.6.60 fork 保留上游 Antigravity 刷新和 Windows 凭据导入。账号发现只提供元数据，凭据通过管理员授权的显式导入接口读取；浏览器请求验证同时覆盖新增通知状态和现有网关请求规则。

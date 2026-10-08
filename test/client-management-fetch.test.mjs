@@ -23,6 +23,7 @@ function mountClient(payloadFor = () => ({ config: { slots: [], codexFastMode: t
       if (!(index in current)) current[index] = typeof initial === 'function' ? initial() : initial
       return [current[index], next => { current[index] = typeof next === 'function' ? next(current[index]) : next }]
     },
+    useRef(initial) { return this.useState(() => ({ current: initial }))[0] },
     useEffect(effect) { effects.push(effect) },
   }
   runInNewContext(source, {
@@ -71,7 +72,7 @@ test('account status and settings reads omit Referer across a Host-rewriting gat
   const mounted = client.render(pill.type, pill.props)
   for (const effect of mounted.effects) effect()
   await setImmediate()
-  assert.deepEqual(client.requests.map(row => row.path), ['/dsh-subscriptions/status', '/dsh-subscriptions/config'])
+  assert.deepEqual(client.requests.map(row => row.path), ['/dsh-subscriptions/status', '/dsh-subscriptions/alerts?limit=5', '/dsh-subscriptions/config'])
   for (const { options } of client.requests) {
     assert.equal(options.referrerPolicy, 'no-referrer')
     assert.equal(options.cache, 'no-store')

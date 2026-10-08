@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { discoverLocalCliSessions, loadLocalCliBlob } from '../lib/import-auth.js'
+import { discoverLocalCliSessions, loadLocalCliBlob, setWindowsCredentialReaderForTest } from '../lib/import-auth.js'
 
 // #296: the CLI importers read local credential files. A fixture home
 // keeps the tests hermetic - no real HOME, no env mutation for the
@@ -116,4 +116,36 @@ test('loadLocalCliBlob rejects unsupported providers explicitly', async () => {
       await assert.rejects(() => loadLocalCliBlob('codex-unknown', { home }), /(no local CLI session found|unsupported)/)
     }
   })
+})
+
+
+test('Windows Antigravity discovery reports metadata and explicit import returns its credentials', async () => {
+  const credential = { email: 'fixture@example.com', token: { access_token: 'fixture-access', refresh_token: 'fixture-refresh' } }
+  setWindowsCredentialReaderForTest(() => credential)
+  try {
+    await withHome({}, async (home) => {
+      const found = await discoverLocalCliSessions({ home })
+      assert.equal(found.antigravity.source, 'credential-manager')
+      assert.equal(found.antigravity.email, credential.email)
+      assert.equal(found.antigravity.hasRefreshToken, true)
+      assert.equal(JSON.stringify(found).includes('fixture-access'), false)
+      const blob = await loadLocalCliBlob('antigravity', { home })
+      assert.equal(blob.accessToken, 'fixture-access')
+      assert.equal(blob.refreshToken, 'fixture-refresh')
+    })
+  } finally {
+    setWindowsCredentialReaderForTest(null)
+  }
+})
+
+test('an empty Windows credential store does not advertise an importable session', async () => {
+  setWindowsCredentialReaderForTest(() => null)
+  try {
+    await withHome({}, async (home) => {
+      assert.equal((await discoverLocalCliSessions({ home })).antigravity, undefined)
+      await assert.rejects(() => loadLocalCliBlob('antigravity', { home }), /no local CLI session found/)
+    })
+  } finally {
+    setWindowsCredentialReaderForTest(null)
+  }
 })

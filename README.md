@@ -149,6 +149,9 @@ const res = await ctx.subscriptions.request('codex', '/backend-api/codex/images/
 | `/dsh-subscriptions/proxy-check` | POST | Latency check of a slot's proxy against its vendor base URL |
 | `/dsh-subscriptions/oauth/device/start` | POST | Begin Codex device-code login (returns user code + verification URL) |
 | `/dsh-subscriptions/oauth/device/poll` | POST | Poll device-code authorization status |
+| `/dsh-subscriptions/quarantine/park` | POST | Park an account into quarantine for custom duration (`durationMs`, `reason`) |
+| `/dsh-subscriptions/quarantine/probe` | POST | Run immediate live warmup health probe or force-release account |
+| `/dsh-subscriptions/alerts` | GET | List recent in-app alerts and notifications |
 
 ---
 
@@ -197,6 +200,18 @@ const res = await ctx.subscriptions.request('codex', '/backend-api/codex/images/
 * **Curated Models Catalog**: Quick preview of supported model families with context windows and capability tags (Vision, Reasoning, Hybrid).
 * **Non-Blocking Storage**: `HistoryStore` debounces disk persistence asynchronously to prevent blocking the Node.js event loop during high-throughput streaming.
 
+### 17. 🛡️ Quarantine Management, Live Quota Countdown & In-App Toast Alerts (v0.6.59)
+* **Manual Quarantine Control (Park & Probe)**: Directly park active accounts in quarantine (`POST /dsh-subscriptions/quarantine/park`) for maintenance or pause, or trigger an immediate live warmup probe and instant release (`POST /dsh-subscriptions/quarantine/probe`) right from the account slot card.
+* **Dynamic Quota Window Countdown**: Live second-by-second countdown timer displayed in the `SubsPill` session widget and account settings cards, showing exact time remaining until rolling rate-limit windows (`five_hour`, `seven_day`, `primary_window`) reset.
+* **In-App Toast Alerts (`enableToasts`)**: Lightweight floating toast alerts in the DSH chat interface notifying you when accounts enter quarantine, recover from cooldowns, or exceed quota safety thresholds.
+* **Automated Webhook Integration**: Instant event notifications dispatched via `notifyQuarantineEntered` and `notifyQuarantineReleased`.
+
+### 18. 🔑 Antigravity Client Secret & Resilient CLI Refresh (v0.6.60)
+* **Client Secret in Schema (`antigravityClientSecret`)**: Configure custom Google Cloud OAuth client secrets with automatic mask redaction (`••••••`), resolving token refresh rejections for confidential OAuth clients.
+* **Zero-Config CLI Token Refresh**: Bundled public application credentials for the standard Gemini / Antigravity CLI client (`Google Gemini CLI Client ID` / `Google Gemini CLI Client Secret`), ensuring imported CLI sessions keep refreshing indefinitely without dying after 1 hour.
+* **Windows Credential Manager CLI Discovery**: Native `win32` discovery for Windows Credential Manager generic target `gemini:antigravity`, enabling seamless `📥 From CLI` import on Windows.
+* **Descriptive Refresh Diagnostics**: Actionable error reporting identifying missing or invalid client credentials instead of generic upstream HTTP 400 errors.
+
 ---
 
 ## 📦 Quick Installation
@@ -230,6 +245,7 @@ dsh-subscriptions:
   codexVerbosity: ''        # v0.4.17: low | medium | high (text.verbosity)
   codexFastMode: false      # v0.4.17: service_tier priority (1.5x speed tier)
   composerQuota: 'off'      # v0.4.18: composer indicator: off | percent | bar | forecast
+  enableToasts: true        # v0.6.59: real-time in-app toast alerts on quarantine and quota events
   # Per-slot fields (v0.4.9): expiresAt (ms epoch), proxyUrl (http/https/socks5://)
   accounts:
     codex:
@@ -338,3 +354,5 @@ Codex catalog requests use CLI identity version `0.160.0` by default; `codexClie
 This fork accepts Harness `0.2.0-rc.1` and `0.2.0-rc.2` in addition to its existing runtime peer ranges. Deploy all Harness peers from one runtime release; account authorization, settings persistence, and browser/desktop behavior remain owned by the existing integrations.
 
 The 0.6.58 fork retains namespaced adapters when the LLM registry appears late. Optional quota draining prioritizes expiring balances while respecting cooldowns; provider requests normalize paths before dispatch. Claude model discovery distinguishes OAuth tokens from API keys. The fork keeps its local test launcher because the sanitized upstream release does not include its referenced test setup module.
+
+The 0.6.60 fork retains upstream Antigravity refresh and Windows credential-import support. Account discovery exposes metadata only; credentials are read through the explicit administrator-authorized import route. The browser request tests cover the new notification state alongside the existing gateway request policy.
