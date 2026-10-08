@@ -356,3 +356,5 @@ This fork accepts Harness `0.2.0-rc.1` and `0.2.0-rc.2` in addition to its exist
 The 0.6.58 fork retains namespaced adapters when the LLM registry appears late. Optional quota draining prioritizes expiring balances while respecting cooldowns; provider requests normalize paths before dispatch. Claude model discovery distinguishes OAuth tokens from API keys. The fork keeps its local test launcher because the sanitized upstream release does not include its referenced test setup module.
 
 The 0.6.60 fork retains upstream Antigravity refresh and Windows credential-import support. Account discovery exposes metadata only; credentials are read through the explicit administrator-authorized import route. The browser request tests cover the new notification state alongside the existing gateway request policy.
+
+The Antigravity client secret supports runtime settings updates and stays redacted in public responses; unrelated settings edits preserve the stored secret.

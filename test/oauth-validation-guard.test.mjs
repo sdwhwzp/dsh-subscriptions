@@ -66,7 +66,9 @@ test('config schema includes antigravityClientSecret and redacts it in publicCon
   assert.ok(schemaKeys.includes('antigravityClientSecret'), 'antigravityClientSecret must exist in Config')
   assert.ok(schemaKeys.includes('antigravityClientId'), 'antigravityClientId must exist in Config')
 
-  const parsed = plainConfig(Config({ antigravityClientId: 'my-id', antigravityClientSecret: 'super-secret' }))
+  const boxed = Config({ antigravityClientId: 'my-id', antigravityClientSecret: 'super-secret' })
+  assert.equal(typeof boxed.antigravityClientSecret.get, 'function', 'runtime settings must accept the confidential-client secret')
+  const parsed = plainConfig(boxed)
   assert.equal(parsed.antigravityClientSecret, 'super-secret')
 
   const pub = publicConfig(parsed)
