@@ -439,3 +439,47 @@ test('settings writes reject missing or stale revisions and durable write confli
     assert.equal(state.provided.subscriptions.live(), before)
   } finally { for (const off of state.cleanups.reverse()) off() }
 })
+
+for (const operation of ['update', 'replace']) {
+  test(`modern ${operation} writes only live fields and retains profile secrets`, async () => {
+    const mod = await loadPlugin()
+    const { ctx, state } = fakeCtx()
+    const original = configSnapshot({
+      slots: [], autoLoopback: false, ollamaFallback: false, probeIntervalMin: 0,
+      masterKey: 'profile-master', vaultSyncPassphrase: 'profile-passphrase',
+      vaultSyncWebdavPassword: 'profile-webdav', vaultSyncGistToken: 'profile-gist',
+      vaultSyncS3SecretKey: 'profile-s3',
+    })
+    const ordinary = Object.keys(Config.dict).filter(key => !Config.dict[key].meta.volatile)
+    let current = Object.fromEntries(Object.entries(original).filter(([key]) => !ordinary.includes(key)))
+    let revision = 4, writes = 0
+    ctx.settings = {
+      describe: () => [{ ns: 'dsh-subscriptions', value: current, revision }],
+      async [operation](ns, next, expected) {
+        assert.equal(ns, 'dsh-subscriptions')
+        assert.equal(expected, revision)
+        for (const key of Object.keys(next)) assert.equal(Config.dict[key].meta.volatile, true, key)
+        current = next
+        writes++
+        revision++
+        state.listeners.get('settings/document-updated')('dsh-subscriptions')
+      },
+    }
+    mod.apply(ctx, original)
+    try {
+      const read = await configRequest(state)
+      assert.equal(read.body.config.masterKey, '••••••')
+      for (const key of ordinary) assert.equal(state.provided.subscriptions.live()[key], original[key])
+      const saved = await configRequest(state, 'PUT', { ...read.body.config, codexFastMode: true })
+      assert.equal(saved.status, 200)
+      assert.equal(writes, 1)
+      assert.equal(state.provided.subscriptions.live().codexFastMode, true)
+      for (const key of ordinary) assert.equal(state.provided.subscriptions.live()[key], original[key])
+      const rejected = await configRequest(state, 'PUT', { ...saved.body.config, masterKey: 'new-master' })
+      assert.equal(rejected.status, 400)
+      assert.match(rejected.body.error.message, /masterKey.*profile edit.*reload/)
+      assert.equal(writes, 1)
+      assert.equal(state.provided.subscriptions.live().masterKey, original.masterKey)
+    } finally { for (const off of state.cleanups.reverse()) off() }
+  })
+}
