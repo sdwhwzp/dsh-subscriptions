@@ -93,6 +93,8 @@ graph LR
 ### 多账号轮换与限流保护
 * 每个供应商可挂多个账号（如 `CODEX_OAUTH_1`、`CODEX_OAUTH_2`）。
 * 遇到 429/配额耗尽自动切换到下一个健康账号；支持按剩余量提前切换和动态冷却恢复。
+* **轮换决策追踪与路由解释 (#517)**：实时同步记录账号选择、轮换切换、失败原因与级联回退的完整决策链路（无需事后推导），并在 WebUI 遥测与诊断报告中可视化展示。
+* **动态模型目录与配额可用性 (#507)**：基于账号池计算模型综合可用性（单个账号隔离不影响具备可用账号的模型），展示上下文窗口、能力标签（视觉、工具、推理、编码、快速）及动态配额倒计时。
 
 ### 安全与无头登录
 * OAuth 令牌绝不通过 HTTP API 返回，也不在 Web 界面渲染；仅存放于宿主加密凭据存储。
@@ -126,7 +128,36 @@ graph LR
 * **手动隔离管理（暂停与预热探测）**：支持在设置面板的账户卡片中一键暂停隔离活跃账户（`POST /dsh-subscriptions/quarantine/park`），或立即触发真实上游预热微探测（`probeWarmup`）并在验证成功后即时解除隔离（`POST /dsh-subscriptions/quarantine/probe`）。
 * **动态额度重置倒计时**：在顶部会话栏 `SubsPill` 和账户卡片中秒级动态更新，精准展示滚动配额窗口（`five_hour`、`seven_day`、`primary_window`）的剩余解锁时间。
 * **应用内即时弹窗提醒（Toast）**：当账户进入隔离、健康恢复解除隔离或额度达到预警线时，在聊天界面弹出轻量级浮动提醒。通过 `enableToasts: true` 控制。
+  enableQueue: true         # v0.6.62: 账户并发请求排队与限流
+  accountMaxConcurrency: 2  # v0.6.62: 单账户最大并行活跃流
+  maxQueueSize: 20          # v0.6.62: 队列最大等待深度
+  queueTimeoutMs: 30000     # v0.6.62: 队列最大等待超时时间（毫秒）
 * **自动化 Webhook 告警集成**：通过 `notifyQuarantineEntered` 与 `notifyQuarantineReleased` 自动向外部通知系统派发隔离生命周期事件。
+
+### 🩺 服务商鉴权诊断、网络延迟 RTT 指标、动态模型同步与客户端轻量化 (v0.6.72)
+* **服务商错误诊断系统 (#543)**: 智能分析与解读服务商连接和鉴权失败原因（Cloudflare 403 / 地区限制、令牌过期、会话失效、模型权限不足、用量配额耗尽），并在卡片中直接展示修复建议。
+* **延迟 RTT 指标与快速 Ping 测试 (#542)**: 实时测量至服务商 API 的网络往返时间，支持色彩标记状态徽章（🟢 <250ms, 🟡 <750ms, 🔴 >750ms）及独立 POST /dsh-subscriptions/ping 接口。
+* **动态模型列表同步 (#541)**: 账户卡片一键「同步模型」按钮，直接从服务商 /v1/models 接口获取最新及账号专享模型，无需等待插件版本更新。
+* **客户端包体积优化 (#540)**: 将 lib/client.js 体积从 217.3 KiB 缩减至 199 KiB 以下（距离 256 KiB DSH Store 门禁阈值预留超 57 KiB 安全冗余空间）。
+
+### 🛡️ 弹性容灾、故障诊断与跨服务商回退 (v0.6.71)
+* **跨服务商级联故障转移与优先级排序 (#536)**: 支持自定义跨服务商回退顺序，可在 WebUI 中通过 ▲/▼ 交互调整优先级。
+* **一键链路测试与延迟检测 (#536)**: 在账户列表或状态弹窗中一键发起探活并显示往返延迟。
+* **冷却倒计时与就绪通知 (#536)**: 实时展示受限账户恢复倒计时，解除冷却时自动弹出就绪通知。
+* **主动 OAuth 令牌心跳 (#536)**: 提前预刷即将过期的访问令牌，避免用户请求时产生额外等待。
+* **最近错误环形日志审查 (#536)**: 内存保存最近 20 条已脱敏的运行错误，支持在 Diagnostics 中查看与清空。
+
+### Antigravity 分档思考模型、工具回放哨兵与流式自愈 (v0.6.69)
+* **Gemini 3 工具回放哨兵 (#534)**：在重建的工具调用中注入 `thoughtSignature: 'skip_thought_signature_validator'`，彻底解决多轮工具调用历史重放时 Gemini 3 的校验失败问题。
+* **分档 Flash 模型与思考档位 (#534)**：将 `gemini-3.8-flash-tiered` 与 `3.7` 自动解析展开为 High/Medium/Low 档位选择，并在调用时自动组装 `thinkingConfig.thinkingLevel`。
+* **流式空响应自愈与账号轮换 (#534)**：引入 30 秒 SSE 空闲超时保护与空响应检测，在未输出前自动重试一次，失败时通过 `EMPTY_RESPONSE` / `TIMEOUT` 自动轮换至下一个可用账号。
+
+### xAI Grok RFC 8628 设备码授权流支持 (v0.6.68)
+* **RFC 8628 设备码授权流 (GH #17, #532)**：为 xAI Grok 新增原生设备码登录授权支持。彻底解决 xAI 针对 CLI 客户端标识返回 Grok Build 验证码页面且不触发回环重定向回调导致的死锁问题。直接在槽位卡片展示用户授权码，并自动在后台轮询兑换会话令牌。
+
+### Claude 账户级计费归因隔离与动态轮次索引 (v0.6.67)
+* **按账户隔离 `cc_turn_index` 与 `cch` (#530)**：将 Claude Code 计费归因状态（会话哈希 `cch` 与递增轮次 `cc_turn_index`）按 `accountId` 隔离在有界模块级映射表中，彻底消除 `globalThis` 跨订阅账户状态混用问题。
+* **动态计算 `cc_prompt_index` 与禁用开关**：根据多轮对话消息历史自动计算从 0 开始的 `cc_prompt_index`，并支持通过环境变量 `CLAUDE_CODE_ATTRIBUTION_HEADER=0` 或 `disableBillingHeader: true` 禁用归因头注入。
 
 ### Antigravity 客户端密钥架构与无感 CLI 令牌刷新 (v0.6.60)
 * **配置架构密钥字段 (`antigravityClientSecret`)**：支持用户在设置中自定义配置 Google Cloud OAuth 客户端密钥（Client Secret），公共接口自动脱敏掩码 (`••••••`)，彻底解决机密型 OAuth 客户端刷新令牌被拒的问题。
@@ -154,6 +185,16 @@ dsh plugin --profile web add @goodandready/dsh-subscriptions
 ```
 
 ---
+
+### 自定义供应商与主机信任
+
+- `customVendors.authUrl`、`tokenUrl` 和 `baseUrl` 必须使用 `https://`。明文 `http://` 仅允许用于回环主机（`localhost`、`127.0.0.1`、`::1`）。
+- Grok `baseUrl` 覆盖只能指向 `api.x.ai`、`grok.com` / `*.grok.com` 或回环主机；其他主机会以 `GROK_UNTRUSTED_HOST` 拒绝，避免 bearer 令牌离开可信的 xAI 基础设施。
+- Antigravity CLI 导入必须配置 `antigravityClientSecret`；内置默认值已移除。
+- `copilotCliPath` 必须指向 `copilot`、`github-copilot-cli` 或 `copilot-cli` 可执行文件；自定义包装器请重命名。
+- 凭据备份使用 `/dsh-subscriptions/vault/export` 和 `/vault/import`；旧路由 `/export`、`/import`、`/export-backup`、`/import-backup` 已移除。
+- 错误缓冲区和诊断报告会在存储或返回前脱敏 bearer 令牌、API 密钥、JWT 和 `key=value` 凭据。
+
 
 ## 🧠 Claude 自适应思考与推理深度控制 (v0.6.7 新增)
 

@@ -26,7 +26,7 @@ function harness() {
     },
   }
   registerProxyRoutes(ctx, state)
-  const proxy = routes.find((r) => r.path === '/dsh-subscriptions/proxy')
+  const proxy = routes.find((r) => r.path === '/dsh-subscriptions/proxy/')
   assert.ok(proxy, 'proxy route registered')
   return { proxy, requested, analyze: routes.find(row => row.path === '/dsh-subscriptions/analyze-session') }
 }

@@ -1,3 +1,480 @@
+## [0.6.91] - 2026-10-20
+
+### Security
+- The OAuth callback trust-checks non-navigation requests; top-level provider redirects still work (#606).
+
+### Packaging
+- 0.6.90 was normalized by npm to 0.6.9 (trailing zero), so an exact 0.6.90 install does not exist and 0.6.9 sorts below 0.6.89. 0.6.91 supersedes both; do not use 0.6.90 or 0.6.9.
+
+### Verification
+- Full `npm test`: 850/850 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+
+## [0.6.90] - 2026-10-20
+
+> Packaging note: npm normalized this version to 0.6.9; it is superseded by 0.6.91.
+
+### Security
+- The OAuth callback now trust-checks non-navigation requests: top-level provider redirects still work, but cross-site fetch/subresource attempts are rejected with 403 (#606).
+
+### Verification
+- Full `npm test`: 850/850 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+
+## [0.6.89] - 2026-10-20
+
+### Client and Vendor Cleanup
+- Settings navigation uses pluginNavigation.openBundle; the DOM scraper, label guessing and poll chains are removed (#624).
+- Quota bars, LED/tag thresholds, clock padding and mm:ss formatting share one set of helpers (#626).
+- The grok gRPC-web protobuf decoder and its optional credits fallback are removed; usage reads the billing JSON only (#630).
+- Built-in provider ids, display names and isProvider now come from one registry shared by refs and vendors (#632).
+- fetchWithTimeout returns the native Response; the res.json/res.text monkey-patching is removed and the request-wide AbortSignal enforces the body deadline (#633).
+
+### Deferred (closed as not planned)
+- #623 (split the 2040-line SubsSection) — architecture-only, needs an interactive UI harness.
+- #627 (five PluginCard registrations) — distinct host slots/keys required for DSH 0.1/0.2 compatibility, not duplication.
+- #629 (vendor factory for 12 OpenAI adapters) — needs per-vendor integration tests; deferred to a dedicated task.
+
+### Verification
+- Full `npm test`: 849/849 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+
+## [0.6.88] - 2026-10-20
+
+### Reliability and Cleanup
+- VIP/tags/weight/isPro are persisted in Slot and returned by listAccounts (#591).
+- Vendors return null instead of fabricated usage snapshots (#619).
+- Vendors no longer mutate the caller's credential blob (#621).
+- Outbound header values are sanitized for CRLF and non-Latin1 input (#622).
+- Removed the unused sessions service from client inject (#628).
+- Removed 43 dead translation keys, added missing lang/error/settingsError, and added a key-parity test (#635).
+- Locale detection uses the lang key instead of translated prose (#614).
+- The composer forecast uses the server analytics.forecast instead of a client EWMA (#625).
+- Plugin-settings DOM polling is generation-guarded so a new navigation cancels old chains (#610).
+- Alert, status and vault failures are surfaced instead of rendered as empty state (#612).
+
+### Verification
+- Full `npm test`: 847/847 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+
+## [0.6.87] - 2026-10-20
+
+### Breaking Changes
+- The backup API exposes only `/dsh-subscriptions/vault/export` and `/vault/import`; the legacy `/export`, `/import`, `/export-backup` and `/import-backup` routes were removed (#599).
+
+### Reliability and UI
+- Config reload aborts stale requests and ignores out-of-order responses (#608).
+- Client state timers are tracked and cleared on unmount (#609).
+- Clipboard writes are awaited and caught (#611).
+- Added the missing cancel/quota/subs5hWindow translations (#613).
+- The proxy prefix ends with a slash, so /proxy-check keeps its own handler (#601).
+- Custom vendor ids cannot collide with built-ins (#617); invalid profiles are skipped individually (#618).
+- The updater reuses the shared request-trust policy (#634).
+- Removed no-op vendor usage()/check fields (#631).
+
+### Verification
+- Full `npm test`: 836/836 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+
+## [0.6.86] - 2026-10-20
+
+> 0.6.85 was not published to npm because the registry kept a staged-version tombstone after the first publish attempt. 0.6.86 contains the same code and is the published artifact.
+
+### Reliability and Security
+- OAuth Connect opens its popup before the first await and keeps a fallback link; the slash command copies the URL when a popup is blocked (#595).
+- ERNIE access_token is URL-encoded in the v1 chat URL (#636).
+- Loopback parsing validates IPv4 octets; the updater uses the same rule (#603).
+- /logout validates provider and index before clearing a credential ref (#607).
+- /history relies on isTrustedSettingsRequest instead of re-checking Host (#602).
+- SSE parsing caps the buffer at 8 MB and enforces a 10-minute deadline (#604).
+- Claude billing fallback keys are sha256-based (#615).
+- vendor-factory rethrows 401/403 from listModels (#616).
+- Vendor error bodies are read with a 4 KB cap (#605).
+- Copilot CLI removes its abort listener and escalates to SIGKILL (#620).
+
+### Verification
+- Full `npm test`: 826/826 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+
+## [0.6.84] - 2026-10-20
+
+### Security and Reliability
+- Copilot CLI paths are restricted to copilot binaries (#573, breaking).
+- Client links and images require http/https/dsh-app; data:image is allowed only for images (#586).
+- Status vendor probes are bounded by a 15s vendorFetch timeout (#582).
+- The diagnostic wizard uses canonical vendor signatures and a real proxy HEAD (#597).
+- Vault exports use the package version; imports reject future majors (#598).
+
+### Configuration and UI
+- monthlyCost and per-account maxQueueSize are part of the Slot schema; monthlyCost is editable in the slot UI (#590, #592).
+- Removed the dead INSTRUCTIONS branch (#593).
+- The device polling effect has dependencies and handles errors (#594).
+- Slot updates are functional and keyed by provider and index (#596).
+
+### Breaking Changes
+- `copilotCliPath` must point to a `copilot`, `github-copilot-cli` or `copilot-cli` binary; rename custom wrappers.
+
+### Verification
+- Full `npm test`: 813/813 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+
+## [0.6.83] - 2026-10-20
+
+### Security Hardening (Audit Batch 2)
+- **OAuth and request trust**:
+  - JetBrains and Perplexity require a real PKCE challenge and state (#576).
+  - Antigravity requires an explicit client secret; the embedded default was removed (#577).
+  - The headless redirect requires a trusted request and posts state only to a validated origin (#579).
+  - Loopback settings requests pin Host to loopback or configured hosts (#572).
+  - Sandboxed CLI discovery no longer reads the real Windows Credential Manager (#581).
+- **Imports and settings**:
+  - Imported credential blobs are validated before saving (#584).
+  - Import and vault sync pass the settings revision they read (#585).
+- **Vendors and proxy**:
+  - Copilot CLI launches `.cmd` shims on Windows (#588).
+  - Copilot stderr is capped and GitHub tokens are redacted (#589).
+  - The proxy allowlist covers all built-in providers (#600).
+
+### Breaking Changes
+- Antigravity CLI imports must configure `antigravityClientSecret`; the embedded default no longer exists.
+
+### Verification
+- Full `npm test`: 802/802 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+
+## [0.6.82] - 2026-10-20
+
+### Security Hardening (Audit Fixes #568-#587)
+- **OAuth and token transport**:
+  - ERNIE token exchange sends client credentials in the request body instead of the URL (#568). The inference access token is tracked separately in #636.
+  - Custom vendor config objects are no longer forwarded as HTTP headers (#569).
+  - Settings `masterKey` now encrypts credentials at rest and matches `isEncryptedAtRest` (#570).
+  - Custom vendor `authUrl`/`tokenUrl`/`baseUrl` require HTTPS; plain HTTP is allowed only for loopback hosts (#571).
+- **Copilot CLI**:
+  - Model ids are validated before argv construction, preventing flag injection (#574).
+  - `stdin` EPIPE is handled without crashing the host (#583).
+- **Grok**:
+  - Bearer tokens are sent only to trusted xAI hosts (`api.x.ai`, `grok.com`/`*.grok.com`, loopback) (#575).
+  - The CLI catalog cache is capped at 32 entries and keyed by `sha256(token)` (#587).
+- **Diagnostics and OAuth state**:
+  - Error buffer, diagnostics report and wizard redact Bearer tokens, API keys, JWTs and `key=value` credentials (#578).
+  - Expired pending OAuth states are swept on start and every 60 seconds (#580).
+
+### Breaking Changes
+- Custom vendor endpoints using non-loopback `http://` must switch to `https://`.
+- Grok `baseUrl` overrides must point to `api.x.ai`, `grok.com`/`*.grok.com`, or a loopback host.
+
+### Verification
+- Full `npm test`: 792/792 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+
+## [0.6.81] - 2026-10-18
+
+### Added & Enhanced (Issue #563 - Perplexity Pro & JetBrains AI Subscription OAuth Integration)
+- **Perplexity Pro Subscription OAuth (Issue #563)**:
+  - Integrated OAuth 2.0 PKCE authentication flow for Perplexity Pro accounts (`authorizeUrl`, `exchangeCode`, `refresh`).
+  - Added discovery and catalog for official Perplexity models: `sonar-reasoning-pro` (with low/medium/high reasoning effort support), `sonar-pro`, `sonar-reasoning`, `sonar`, and `r1-1776`.
+  - Added Pro plan decoration, profile avatar, and token usage endpoint integration.
+  - Added token pricing rates in `lib/pricing.js` for value delivered calculations.
+- **JetBrains AI Assistant Subscription Integration (Issue #563)**:
+  - Direct OAuth PKCE authentication flow with JetBrains Accounts for AI Assistant subscribers.
+  - Registered official JetBrains AI models: `jb-claude-3.5-sonnet`, `jb-claude-3.7-sonnet` (with reasoning efforts), `jb-gpt-4o`, `jb-o3-mini`, and `jb-deepseek-r1`.
+  - Added user license check, license decoration, and `IntelliJ-IDEA` User-Agent forwarding.
+- **Capability Matrix & Slot Lifecycle**:
+  - Registered `perplexity` (200K context, low_med_high reasoning, tools) and `jetbrains` (200K context, budget reasoning, vision, tools) in `PROVIDER_CAPABILITIES`.
+  - Added plan badges `[Pro]` and `[AI Assistant]` in WebUI slot cards.
+
+## [0.6.80] - 2026-10-18
+
+### Added & Enhanced (Issues #557 & #562 - Headless Auth Helper with SSH Port Forwarding & Automated Encrypted Vault Sync)
+- **Headless Auth Helper with Auto-Generated SSH Port Forwarding & Terminal/Web QR Code (Issue #557)**:
+  - Added SSH port forwarding command generator in `lib/headless-auth.js` (`generateSshTunnelCommand`) that computes the exact copyable command (`ssh -N -L <port>:127.0.0.1:<port> user@<host>`) using actual remote port and request origin host.
+  - Implemented zero-dependency pure JavaScript QR Code generator (Byte Mode, ECC Level L, Versions 1-10) with terminal ANSI half-block rendering (`renderAsciiQr`) and inline SVG/Data URL rendering (`renderSvgQr`, `renderSvgDataUrl`).
+  - Automatically emits ASCII QR code in terminal/journal logs on device authorization flows and renders high-contrast inline QR code in WebUI modal for mobile/camera scanning.
+  - Added dedicated headless callback relay route `GET /dsh-subscriptions/oauth/headless-redirect` to complete OAuth exchanges and return postMessage/copyable code fallback.
+  - Added WebUI 1-click "Copy SSH Command" button and expandable headless tips in Connect modal.
+- **Automated Encrypted Vault Sync via WebDAV, S3, or Private Gist (Issue #562)**:
+  - Supported automated remote encrypted backup and synchronization to WebDAV (Nextcloud, ownCloud, NAS), secret GitHub/Gitea Gists, and S3-compatible object storage (AWS S3, MinIO, Cloudflare R2) using native SigV4 signing.
+  - Added `vaultSync*` configuration options in `Config` schema with automatic credential masking (`••••••`) and restoration in `publicConfig` and `restoreMaskedSecrets`.
+  - Added background periodic synchronization loop in `lib/index.js` and optional automatic push after successful OAuth logins/refreshes (`vaultSyncAutoPush`).
+  - Added management endpoints `POST /dsh-subscriptions/vault/sync/push`, `POST /dsh-subscriptions/vault/sync/pull`, and `GET /dsh-subscriptions/vault/sync/status`.
+  - Added interactive "Automated Remote Vault Sync" controls and live status in the WebUI Vault modal.
+
+## [0.6.79] - 2026-10-17
+
+### Added & Enhanced (Issues #556, #558, #559, #561 - Capabilities Matrix, Billing Cycle Notifier, Pacing Runway & Value Delivered Counter)
+- **Subscription Capability Matrix & Request Normalizer (Issue #556)**:
+  - Introspected model & subscription tier capabilities: context window limits (128K, 200K, 500K Team, 1M, 2M Ultra), thinking modes, multimodal vision, and function tools.
+  - Implemented adaptive request normalization in `lib/capabilities.js` and `streamWithRotation`: automatically clamps `maxTokens` and strips unsupported tools or reasoning parameters to prevent HTTP 400 Bad Request errors.
+  - Rendered interactive capability badges on WebUI slot cards (`[500K Context] [Adaptive Thinking] [Vision] [Tools]`).
+- **Billing Cycle Renewal Countdown & Payment Notifier (Issue #558)**:
+  - Extracted billing cycle reset timestamps from token metadata and computed human-readable renewal countdown (`📅 Renews in X days (YYYY-MM-DD)` / `📅 Renews today`).
+  - Added payment failure detector: identifies `past_due`, `unpaid`, and `payment_failed` statuses, rendering warning badge `⚠️ Payment Failed` / `⚠️ Renewal Overdue`.
+  - Dispatches automated webhook alerts 48h/24h before expiry and immediately upon billing failures via `notifyBillingAlert`.
+- **Quota Pacing Runway & Sliding Window Burn Predictor (Issue #559)**:
+  - Real-time runway duration estimator (`calculatePacingRunway`) combining sliding window velocity and remaining quota percent.
+  - Added color-coded pacing status indicators in WebUI: green `⏱️ Runway: Sustainable` / `> 2.5h`, yellow `⏱️ Runway: ~1h` (elevated), red `⏱️ Runway: < 15m` (critical).
+  - Exposed runway metrics (`runwayMs`, `runwayText`, `pacingStatus`) in `/dsh-subscriptions/analytics` and slot view.
+- **Subscription Value Delivered & API Cost Equivalent Counter (Issue #561)**:
+  - Built official token pricing registry in `lib/pricing.js` for Claude 3.7 Sonnet, GPT-4o, o1, Grok, and Gemini models.
+  - Computed monetary value delivered from prompt, completion, and cache tokens vs $20/mo flat subscription fee.
+  - Rendered ROI widget in WebUI (`📊 $64.20 (3.2x ROI)`) and included value delivered metrics in telemetry and analytics.
+
+## [0.6.78] - 2026-10-17
+
+### Added & Enhanced (Issues #555 & #560 - Per-Slot Concurrency Queue & Atomic Refresh Mutex with Clock Drift Compensation)
+- **Per-Slot Concurrency Queue & Stream Throttle Guard (Issue #555)**:
+  - Added `maxConcurrency` configuration per slot in `Slot` schema, defaulting to 1 for consumer OAuth subscription safety.
+  - Updated default `accountMaxConcurrency` from 2 to 1 in plugin config to protect against 429 rate limit triggers.
+  - Preserved slot-level `maxConcurrency` during normalization, listing, and stream rotation.
+  - Real-time stream tracking exposed on accounts view (`activeStreams`, `queuedStreams`, `maxConcurrency`).
+  - Added interactive per-slot concurrency limit control (`⚡ 1`) and live badge (`⚡ N active · ⏳ M queued`) in WebUI slot cards.
+- **Atomic Token Refresh Mutex Singleflight & Clock Drift Compensation (Issue #560)**:
+  - Implemented singleflight mutex guarantee in `ensureFresh` deduplicating concurrent refresh calls for the same account into a single upstream request.
+  - Dynamic server-to-vendor clock drift compensation: parses upstream HTTP `Date` header, tracks offset in ms, and adjusts local expiry calculations accordingly.
+  - Expanded proactive refresh safety margin to 5 minutes (`300_000 ms`) with drift adjustment.
+  - Integrated transient failure backoff to protect against tight retry loops and avoid slamming vendor OAuth token endpoints.
+
+## [0.6.77] - 2026-10-16
+
+### Added & Enhanced (Issue #550 - Encrypted Vault Backup/Restore & Credentials Encryption at Rest)
+- **Encrypted OAuth Vault Backup & Restore**:
+  - Export all active subscription account slots and OAuth credential blobs into an encrypted portable archive (`dsh-subscriptions-vault.enc`).
+  - Strong AES-256-GCM encryption with user passphrase and PBKDF2/scrypt key derivation.
+  - WebUI modal with 1-click file download and file upload input, allowing seamless migration across DSH instances.
+- **Credentials Encryption at Rest**:
+  - Optional encryption for local credential store on disk using master key (`DSH_SUBSCRIPTIONS_MASTER_KEY` environment variable or `config.masterKey`).
+  - Automatically encrypts sensitive token fields at rest with AES-256-GCM and transparently decrypts upon access.
+  - Exposes `isEncryptedAtRest` on accounts view and renders security status badge `🔒 Encrypted at Rest (AES-256-GCM)` in WebUI.
+  - Masks `masterKey` in public configurations.
+
+## [0.6.76] - 2026-10-16
+
+### Added & Enhanced (Issue #549 - Rolling Quota Window Countdown & Multi-Tenant Organization Switcher)
+- **Subscription Rolling Window Countdown Timer**:
+  - Exact rate-limit reset boundary resolution across vendor headers (`Retry-After`, `x-ratelimit-reset`, Anthropic rolling 5-hour window, Codex 3-hour window).
+  - Real-time countdown computation (`formatRollingCountdown`, `computeEffectiveResetAt`) displayed as `⏳ Window resets at HH:MM (in Xm · MM:SS)` with live ticking.
+  - Rendered in slot card status header and exposed in `accountsView` (`resetAt`, `resetCountdown`, `resetWindowMs`).
+- **Team & Enterprise Workspace / Organization Selector**:
+  - Automatically extract and list organizations and workspaces from OAuth tokens and profile endpoints in `lib/jwt.js` (`organizationsFromToken`) and vendor profile hooks.
+  - Multi-tenant organization switcher on account cards for ChatGPT Team/Enterprise, Claude Team/Enterprise workspaces, Google Antigravity project IDs, and Copilot enterprise organizations.
+  - Dedicated endpoint `POST /dsh-subscriptions/accounts/switch-organization` dynamically switches active organization/workspace and immediately synchronizes live provider adapters.
+  - Outgoing vendor requests include corresponding organization headers (`chatgpt-account-id`, `OpenAI-Organization`, `anthropic-organization-id`, `x-anthropic-organization`).
+
+## [0.6.75] - 2026-10-16
+
+### Added & Enhanced (Issue #548 - Proactive OAuth Health Probe & Zero-Downtime Invalidation Cascade)
+- **Zero-Downtime Cascade on Mid-Flight Token Invalidation**:
+  - Enhanced `isAuthError` in `lib/rotate.js` to identify HTTP 401, `TOKEN_REVOKED`, `invalid_grant`, and remote session terminations.
+  - Transparent failover in `lib/stream-rotate.js`: when an account encounters mid-flight invalidation before output tokens are emitted, it marks the account in `SESSION_REVOKED` quarantine and immediately cascades to the next healthy account of the same vendor without breaking the chat session.
+- **Proactive OAuth Refresh Token Health Probe**:
+  - Hardened background probe loop in `lib/index.js` to proactively test refresh tokens via `store.ensureFresh` and `vendor.check`.
+  - Automatically flags expired/revoked credentials with `store.recordBroken` and `SESSION_REVOKED` quarantine before user prompts fail mid-chat.
+  - Dispatches webhook notifications via `notifySessionExpired`.
+- **Prominent Status Warning Badge & 1-Click Re-Auth**:
+  - Exposes `isRevoked` and `authWarning` in `lib/accounts.js:describeRef` and `lib/accounts-view.js`.
+  - Renders red status badge `⛔ Revoked / Expired` and inline warning banner with direct 1-click `🔄 Re-authenticate now` button in WebUI.
+
+## [0.6.74] - 2026-10-16
+
+### Added & Enhanced (Issue #547 - Subscription Profile Identity, In-Place Re-Auth & OAuth Scope Health Inspector)
+- **Subscription Profile Identity**:
+  - Automatically extract and display authenticated user email, avatar/initials, and subscription plan tier (`Pro`, `Team`, `Max`, `Enterprise`, `Ultra`, etc.) on account cards.
+  - Added JWT token claims decoders in `lib/jwt.js` (`decodeJwtPayload`, `chatgptAccountId`, `emailFromToken`, `planFromToken`, `avatarFromToken`, `scopesFromToken`).
+  - Supported avatar rendering (fallback to initials circle) and email display in WebUI with full `privacyMask` protection (`pmE`).
+- **In-Place 1-Click Re-Authentication**:
+  - Dedicated re-authenticate actions for active slot refs (`REF_OAUTH_N`) that preserve existing slot metadata and credentials while refreshing OAuth authorization.
+  - Completing re-auth clears any active cooldowns, quarantines, and cached refresh failure states (`store.clearRefreshFailure`, `store.clearCooldown`, `store.recordSuccess`).
+  - Added direct inline `🔄 Re-authenticate now` button inside token refresh failure banners.
+- **OAuth Scope Health Inspector**:
+  - Added `lib/scope-inspector.js` validating granted token scopes against provider requirements (`REQUIRED_SCOPES` for Codex, Claude, Antigravity, Copilot, Grok).
+  - Displays visible warning banner (`⚠️ OAuth scope warning`) with 1-click `🔄 Re-grant scopes` button when critical vendor permissions are missing.
+
+## [0.6.73] - 2026-10-14
+
+### Security & Hardening (Defense-in-Depth Audit #545)
+- **OAuth Loopback Callback Path Boundary**:
+  - Replaced prefix matching (`startsWith(path)`) in `lib/loopback.js` with boundary-aware path verification (`url.pathname === path || (path.endsWith("/") ? url.pathname.startsWith(path) : url.pathname.startsWith(path + "/"))`).
+  - Off-path requests (e.g. `/auth/callback_evil`) now return HTTP 404 without consuming the one-shot OAuth slot or prematurely closing the loopback listener.
+- **Desktop Scheme (`dsh-app:`) Hardening**:
+  - Restricted allowed hosts for custom desktop protocol (`dsh-app:`) in `lib/http.js` to `app` and `localhost`.
+  - Added strict remote socket verification: `dsh-app:` requests originating from non-loopback network sockets are immediately rejected (HTTP 403) before connection service delegation.
+- **Plugin Updater Origin Verification**:
+  - Hardened `isTrustedUpdateRequest` in `lib/updater.js` to check `Sec-Fetch-Site: cross-site` and validate `Origin` against `Host` before honoring the fast-path `x-dsh-plugin-update: 1` header on loopback.
+- **Vendor Proxy Path Traversal Containment**:
+  - Added backslash containment in `lib/routes/proxy.js` (`invalid path`, HTTP 400).
+  - Verified and pinned vendor host containment in `subscriptions.request()` so vendor requests cannot escape declared vendor endpoints.
+
+## [0.6.72] - 2026-10-13
+
+### Added & Enhanced (Vendor Auth Doctor, Latency Ping, Model Sync & Client Modularization)
+- **Vendor Auth Doctor (#543)**:
+  - Added `lib/doctor.js` with comprehensive classification of authentication and network failures (`GEO_BLOCKED`, `TOKEN_EXPIRED`, `TOKEN_REVOKED`, `MISSING_SCOPE`, `QUOTA_EXHAUSTED`, `RATE_LIMIT`, `PROXY_ERROR`).
+  - Integrated diagnosis verdicts and actionable recommendations into test connection responses and WebUI account cards.
+- **Latency RTT Indicator & Fast Ping Probe (#542)**:
+  - Real-time round-trip latency measurement to provider APIs with colored badges (`🟢 <250ms`, `🟡 <750ms`, `🔴 >750ms`).
+  - Added dedicated `POST /dsh-subscriptions/ping` endpoint and wired latency grading into `/smoke` test responses.
+- **Dynamic Model Catalog Discovery & Sync (#541)**:
+  - Added `POST /dsh-subscriptions/accounts/sync-models` to query vendor live `/v1/models` catalogs.
+  - Added interactive "🔄 Sync Models" button on account cards to discover new models dynamically.
+- **Client Bundle Modularization & Store Limit Relief (#540)**:
+  - Reduced `lib/client.js` bundle size from 217.3 KiB to < 199 KiB (>57 KiB buffer below 256 KiB DSH Store ceiling) via `h` alias, CSS minification, and dynamic instruction loading via `/dsh-subscriptions/instructions`.
+
+## [0.6.71] - 2026-10-13
+
+### Added & Enhanced (Smart Balancing, Accurate Reset Clock & Soft-Failure Sentinel)
+- **Least-Loaded Smart Balancing (Idea 3 / #538)**:
+  - Added configurable `rotationStrategy` in `lib/config-schema.js` (`round-robin`, `least-loaded`, `priority`).
+  - In `least-loaded` mode, dynamically sorts accounts by highest remaining quota percentage / lowest utilization (`lib/rotate.js`), avoiding burning out individual accounts while others sit idle.
+- **Accurate Quota Reset Clock Synchronization (Idea 8 / #538)**:
+  - Added `lib/reset-clock.js` to parse exact reset timestamps from HTTP rate-limit headers (`Retry-After`, `x-ratelimit-reset`), error bodies, text messages, and vendor rolling windows (Claude 5h, Codex 3h, Grok 2h).
+  - Wired into `lib/stream-rotate.js` to set cooldown and quarantine directly to exact reset boundary + safety buffer (+10s), preventing premature retries and unnecessary long outages.
+- **Soft-Failure & Refusal Sentinel (Idea 9 / #538)**:
+  - Added `lib/sentinel.js` to inspect initial stream output for capacity apologies and polite refusals under HTTP 200 before tokens reach client.
+  - Intercepted soft-failures mark account in degraded cooldown (5m) and automatically cascade to the next healthy account or vendor.
+- **WebUI Settings & Diagnostics Controls**:
+  - Added Balancing Strategy dropdown and Soft-Failure Sentinel toggle in settings with English and Chinese localization.
+
+## [0.6.70] - 2026-10-12
+
+### Added & Enhanced (Resilience, Diagnostics & Fallback Enhancements)
+- **Cross-Vendor Cascading Fallback & Configurable Provider Priority (#536)**:
+  - Added configurable `cascadingFallbackOrder` in `lib/config-schema.js` and wired it into `resolveFallbackVendor` (`lib/cascade.js`) and `lib/adapter-manager.js`.
+  - Added interactive provider priority reordering UI (▲/▼ buttons) in Settings WebUI.
+- **1-Click Test Connection & Latency Measurement (#536)**:
+  - Enhanced `/dsh-subscriptions/check` across all vendors to measure and return round-trip latency (`latencyMs`).
+  - Added per-account `⚡ Test` button in settings table and modal pill with live status badges (`✓ 240ms` / `✗ Error`).
+- **Live Cooldown Countdown & Availability Toasts (#536)**:
+  - Rendered exact remaining countdown (`m:ss`) for accounts in cooldown.
+  - Added in-app toast notification when an account recovers from cooldown and becomes available.
+- **Proactive OAuth Token Heartbeat (#536)**:
+  - Implemented `runProactiveHeartbeat` in `lib/index.js` to refresh expiring tokens ahead of time, preventing latency spikes on user queries.
+  - Added `POST /dsh-subscriptions/heartbeat/run` manual trigger route and heartbeat telemetry in diagnostics report.
+- **Recent Errors Ring Buffer & Inspector (#536)**:
+  - Added `ErrorRingBuffer` (`lib/error-buffer.js`) holding the 20 most recent runtime stream and API errors with PII masking.
+  - Added interactive Recent Errors Inspector in WebUI Diagnostics section with a Clear button.
+
+## [0.6.69] - 2026-10-12
+
+### Added & Enhanced (Antigravity Tiered Thinking Models, Tool Replay Sentinel & Stream Resilience)
+- **Gemini 3 Tool-Call History Replay Sentinel (#534)**:
+  - Injected `thoughtSignature: 'skip_thought_signature_validator'` on reconstructed `functionCall` blocks in `lib/messages.js`.
+  - Fixes Gemini 3.x validation errors when replaying conversation history containing prior tool results in DSH's provider-neutral format.
+- **Tiered Model Catalog & Dynamic Thinking Level Mapping (#534)**:
+  - Preserved `gemini-3.8-flash-tiered` and `gemini-3.7-flash-tiered` in `fetchAvailableModels` (`lib/code-assist.js`) despite empty upstream display names.
+  - Automatically expanded tiered models into High, Medium, and Low choices (`gemini-3.8-flash-high`, `gemini-3.8-flash-medium`, `gemini-3.8-flash-low`, etc.).
+  - Added `antigravityTieredAlias` mapping in `lib/code-assist.js` and wired `streamOnce` in `lib/vendors/antigravity.js` to dispatch the upstream `*-flash-tiered` model ID while configuring `generationConfig.thinkingConfig: { thinkingLevel }`.
+- **Stalled & Empty Stream Resilience with Auto-Retry (#534)**:
+  - Added 30s idle stream timeout (`RESPONSE_TIMEOUT_MS`) in `lib/vendors/antigravity.js` and threaded `idleTimeoutMs` into `googleStream` in `lib/wire.js`.
+  - Added `hasContent` tracking with `EMPTY_RESPONSE` error code when no content tokens are received.
+  - Implemented automatic single retry on transient stream stalls before emitting chunks.
+  - Added `TIMEOUT` and `EMPTY_RESPONSE` to `isSwitchableError` in `lib/rotate.js` for seamless multi-account pool rotation.
+- **Documentation**:
+  - Added `docs/antigravity-models-and-connectivity.md` network and model diagnostic guide.
+
+## [0.6.68] - 2026-10-12
+
+### Fixed & Enhanced (xAI Grok RFC 8628 Device Authorization Flow)
+- **RFC 8628 Device Authorization Flow for xAI Grok (GH #17, #532)**:
+  - Implemented `deviceStart` and `devicePoll` in `lib/vendors/grok.js` using xAI's RFC 8628 device endpoints (`https://auth.x.ai/oauth2/device/code` and `https://auth.x.ai/oauth2/token` with `urn:ietf:params:oauth:grant-type:device_code`).
+  - Solves GitHub issue #17: xAI's CLI client ID (`b1a00492-073a-47ea-816f-4c329264a828`) returns a Grok Build user-code verification page without browser loopback redirection.
+  - Enabled "Device Login" button for Grok slots in `lib/client.js` and wired "Connect" to launch the device flow directly, rendering the user code, direct verification link (`https://accounts.x.ai/oauth2/device`), and background polling.
+  - Updated English and Chinese instructions in `lib/client.js`.
+
+## [0.6.67] - 2026-10-11
+
+### Fixed & Hardened (Claude Per-Account Billing Attribution Isolation)
+- **Per-Account `cc_turn_index` & `cch` Isolation (#530)**:
+  - Replaced process-wide `globalThis.__DSH_CC_TURN__` and `globalThis.__DSH_CC_H__` state in `lib/vendors/claude.js` with a bounded per-account state table (`billingAccountState` Map keyed by `accountId`, capped at 256 entries with FIFO eviction).
+  - Pooled Claude subscriptions no longer share or mix `cch` session hashes or `cc_turn_index` counters across accounts; `lib/adapter.js` passes `accountId: account.id || account.ref` into `vendor.streamOnce()`.
+- **Dynamic `cc_prompt_index` Calculation & Kill-Switch Documentation (#530)**:
+  - `makeClaudeBillingHeader(cfg, context)` now computes `cc_prompt_index` dynamically from multi-turn conversation history (`Math.max(0, userTurns - 1)` in `options.messages`) or explicit `promptIndex` overrides (defaulting to `0` on single-turn prompts).
+  - Documented kill-switch semantics (`CLAUDE_CODE_ATTRIBUTION_HEADER=0` environment variable and `cfg.disableBillingHeader === true`) in `docs/design/DESIGN.md`.
+
+## [0.6.66] - 2026-10-11
+
+### Added & Enhanced (Copilot CLI SDK Mode)
+- **Native Copilot CLI SDK Mode & Local Tool Calling (#508)**:
+  - Added native driver `lib/vendors/copilot-cli.js` supporting direct local execution via the `copilot` / `github-copilot-cli` binary.
+  - Credential reading from local environments and config files (`~/.config/github-copilot/hosts.json`, `apps.json`, `~/.config/gh/hosts.yml`, `~/.copilot-cli/config.json`, env `GITHUB_COPILOT_TOKEN`, `GH_TOKEN`).
+  - Automatic binary detection (`findCopilotCli`, `isCopilotCliAvailable`) searching configured paths, system `PATH`, and standard npm global/local directories (`~/.npm-global/bin`).
+  - Streaming execution (`streamCopilotCli`) translating CLI process stdout into canonical DSH streaming events (`block-start`, `text-delta`, `tool-call-delta`, `finish`, `usage`).
+  - Configuration options in `lib/config-schema.js`: `copilotMode` (`auto` [default], `cli`, `web`) and `copilotCliPath`.
+  - Seamless fallback invariant in `lib/vendors/copilot.js`: in `auto` mode, prefers local CLI if available and falls back smoothly to direct web/OAuth API on error; in `cli` mode, strictly enforces CLI availability with structured error codes.
+  - WebUI configuration dropdown and path input in `lib/client.js`.
+  - Diagnostics integration in `lib/diagnostics.js` (`copilotCli: copilotCliInfo()`).
+
+## [0.6.65] - 2026-10-11
+
+### Added & Enhanced (Batch 4: Reasoning Effort Management & Contract Matrix)
+- **Session-Scoped Reasoning Effort Management (#505)**:
+  - Added pure reasoning engine `lib/reasoning-effort.js` with comprehensive vendor and model capability detection (`getModelReasoningCapabilities`), extraction (`extractReasoningOptions`), validation (`validateReasoningEffort`), session store with sliding TTL (`setSessionReasoning`, `getSessionReasoning`, `clearSessionReasoning`, `pruneSessionReasoning`, `getSessionReasoningStats`), and model-switch safety (`resolveEffectiveReasoning`).
+  - Model switch safety invariant: when a session has stored reasoning effort (e.g. `high` for `o1`), but the user switches the conversation to a non-reasoning model (e.g. `gpt-4o`), `resolveEffectiveReasoning` automatically suppresses the effort to prevent upstream APIs from rejecting the request with HTTP 400.
+  - Extended vendor coverage: Codex (`o1`, `o3`, `low/medium/high`), Claude (`claude-3-7-sonnet*`, `claude-4.6+`, adaptive thinking and token budget mapping), Antigravity/Gemini (`thinkingConfig` injection), Grok (`grok-3-mini`, `reasoning`), and Kimi (`k1.5`, `max` effort level).
+  - HTTP endpoints `GET /dsh-subscriptions/session-reasoning`, `POST /dsh-subscriptions/session-reasoning`, `DELETE /dsh-subscriptions/session-reasoning` for session-scoped override.
+  - WebUI reasoning controls in `lib/client.js`: session effort picker with model-aware badges and quick resets.
+  - Telemetry integration in `lib/diagnostics.js` (`reasoning: getSessionReasoningStats()`).
+- **Adapter Contract Matrix & Wire Protocol Guards (#521)**:
+  - Added comprehensive provider × capability matrix test suite `test/contract-matrix.test.mjs` verifying 8 providers (`codex`, `claude`, `antigravity`, `grok`, `copilot`, `cursor`, `kimi`, `ollama`) across 7 protocol capabilities (`stream`, `tools`, `reasoning`, `usage`, `caching`, `auth_errors`, `rate_limit`).
+  - Strict contract enforcement: offline deterministic wire verification ensuring protocol changes or vendor API deviations are immediately flagged before reaching production.
+  - Malformed vendor response guards: verifying corrupted SSE chunks and vendor error payloads translate cleanly into structured terminal error events without crashes or unhandled rejections.
+
+## [0.6.64] - 2026-10-09
+
+### Fixed (Critical Hotfix: Desktop Referer Loopback Guard)
+- **DSH Desktop Electron HTTP Forwarding Compatibility (#524)**:
+  - Fixed `isTrustedSettingsRequest` in `lib/http.js` where requests from DSH Desktop (Electron) carrying `Referer: dsh-app://app/` failed the `referer.host === host` equality check prior to loopback and connection service verification, causing all settings routes (`/config`, `/accounts`, `/oauth`, `/proxy`, `/diagnostic-wizard`) to reject with HTTP 403 Forbidden.
+  - Restricted strict `host` equality check to standard web schemes (`http:`, `https:`), allowing application schemes (`dsh-app://`) to proceed cleanly to loopback and connection service checks.
+  - Preserved fail-closed cross-site / CSRF protection for web-profile requests while restoring full functionality on DSH Desktop.
+
+## [0.6.63] - 2026-10-09
+
+### Added & Enhanced (Batch 3: Diagnostic Wizard & Cache-Aware Session Pin)
+- **Guided Diagnostic Wizard (#519)**:
+  - Added pure diagnostic analysis engine `lib/diagnostic-wizard.js` with structured step-by-step verification: credentials and expiry status, proxy and gateway configuration, token freshness and singleflight OAuth refresh, and model catalog reachability without incurring paid inference.
+  - Standardized step states (`pass`, `fail`, `warn`, `skipped`) and error codes (`MISSING_CREDENTIAL`, `EXPIRED_ACCESS_TOKEN`, `TOKEN_EXPIRED_NO_REFRESH`, `VALIDATION_REQUIRED`, `PROXY_UNREACHABLE`, `TOKEN_REVOKED`, `CATALOG_OK`).
+  - Automatic data redaction via `sanitizeDiagnosticData`: masks tokens, bearer headers, passwords, keys, and private emails across the entire report and export payloads.
+  - Added HTTP endpoint `POST /dsh-subscriptions/diagnostic-wizard` and interactive WebUI modal wizard with actionable troubleshooting advice and one-click masked report copying.
+- **Cache-Aware Session Pinning (#520)**:
+  - Upgraded session affinity engine in `lib/session-pin.js` with prompt caching awareness (`isCacheAwareProvider`, `CACHE_AWARE_PROVIDERS` for Claude, Codex, Antigravity, and Grok).
+  - Sliding TTL on active turns (`touchSessionPin`), tracking pinned hits and saved cache read tokens (`recordSessionCacheUsage`).
+  - Strict priority invariant in `lib/rotate.js`: account cooldown, quarantine, zero quota, and model incompatibility automatically release the pin with documented reason codes (`pinned_cooldown`, `pinned_quarantine`, `pinned_zero_quota`, `pinned_exhausted`, `pinned_model_mismatch`) before cascading to healthy accounts.
+  - Decision tracing captures `cache_pinned` versus `session_pinned` and displays dedicated visual affinity badge in WebUI telemetry traces.
+  - Integrated pin telemetry in `lib/diagnostics.js` (`pins: getSessionPinStats()`).
+
+## [0.6.62] - 2026-10-09
+
+### Added & Enhanced (Batch 2: Analytics & Concurrency Queue)
+- **Subscription & Cache Analytics (#511)**:
+  - Added pure analytical engine `lib/analytics.js` with comprehensive caching, latency, and throughput metrics (`calculateCacheMetrics`, `calculatePerformanceMetrics`, `calculateHourlyBuckets`, `calculateAccountBreakdown`, `calculateQuotaForecast`, `calculateAnalytics`).
+  - Real-time token efficiency: cache hit rate %, prompt/completion/cached token ratios, TTFT (avg, p95, min, max), and generation speed (tokens/sec).
+  - 24-hour activity distribution histogram: hourly request density, cached tokens, and error distribution.
+  - Quota runway & depletion forecasting: burn rate per account, projected hours until exhaustion, and pre-reset depletion warnings.
+  - HTTP endpoints `GET /dsh-subscriptions/analytics` and enriched diagnostic reports.
+  - Interactive telemetry card in WebUI: cache performance overview, pure CSS 24-hour activity histogram, and quota exhaustion alert banners.
+- **Request Concurrency Queue & Overload Protection (#518)**:
+  - Added bounded concurrency queue engine `lib/concurrency-queue.js` (`ConcurrencyQueue`, `defaultConcurrencyQueue`) with per-key concurrency limits, bounded queue depth, timeout eviction, and zero-leak slot lifecycle.
+  - Integrated with streaming rotation (`streamWithRotation` in `lib/stream-rotate.js`): acquires queue slot before streaming attempt, guarantees release on completion, error, or mid-stream disconnect.
+  - Cooperative cancellation via `AbortSignal`: queued requests evict immediately on client cancel without slot leaks or lingering timeouts.
+  - Automatic load shedding & pool failover: queue overflow (`QUEUE_OVERFLOW`, HTTP 429) and timeout (`QUEUE_TIMEOUT`, HTTP 504) dynamically cascade to next available account in the pool before rejecting.
+  - Configuration settings: `enableQueue` (default true), `accountMaxConcurrency` (default 2), `maxQueueSize` (default 20), `queueTimeoutMs` (default 30000).
+  - Live queue telemetry in WebUI and HTTP endpoint `GET /dsh-subscriptions/queue`.
+
+## [0.6.61] - 2026-10-09
+
+### Added & Enhanced (Batch 1: Decision Traces & Dynamic Model Catalog)
+- **Rotation Decision Tracing & Routing Explanation (#517)**:
+  - Added synchronous decision tracing in account selection, rotation, streaming retry, cascade fallback, and session pinning (`pickAccountWithTrace`, `_decisionTrace`, `onDecisionTrace`).
+  - Standardized reason codes: `session_pinned`, `healthy_tier0`, `healthy_tier1`, `tier2_fallback`, `quarantine`, `cooldown`, `zero_quota`, `hard_exhausted`, `soft_exhausted`, `vip_reserved`, `tag_mismatch`, and `no_usable_account`.
+  - Zero post-hoc reconstruction: traces capture exact account state, metrics, and failure reasons at the moment decisions occur without state drift.
+  - Exposed decision history in `HistoryStore`, `GET /dsh-subscriptions/history`, `GET /dsh-subscriptions/diagnostics`, and WebUI telemetry card («🧭 Rotation & Routing Decisions»).
+- **Enriched Dynamic Model Catalog with Pool Health, Quotas & Capabilities (#507)**:
+  - Added `lib/models-catalog.js` with comprehensive capability inference (`vision`, `tools`, `reasoning`, `coding`, `fast`) and context window definitions.
+  - Pool-level health calculation: individual account quarantine degrades rather than disables the pool when healthy alternative accounts exist (`healthy`, `degraded`, `cooldown`, `quarantined`, `exhausted`, `unavailable`).
+  - Real-time pool quota percentage and live reset countdown badges.
+  - Added HTTP endpoint `GET /dsh-subscriptions/models` and enriched `configResponse` model catalog.
+  - Replaced static chip grid in plugin settings with reactive model catalog including capability tags, context window badges, and status indicators.
+
 ## [0.6.60] - 2026-10-07
 
 ### Fixed & Enhanced

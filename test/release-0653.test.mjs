@@ -16,7 +16,7 @@ test('CLI expiry formats and OAuth client metadata survive persisted credential 
   for (const value of [expected, expected / 1000, String(expected), String(expected / 1000), '2026-10-02T12:34:56.123456789Z', '2026-10-02T14:34:56.123+02:00']) {
     assert.equal(normalizeExpiresAt(value), expected)
     const blob = { accessToken: 'fixture-access', expiresAt: value, clientId, clientSecret: 'fixture-secret', idToken: jwt({ aud: clientId }) }
-    assert.deepEqual(parseBlob(serializeBlob(blob)), { ...blob, expiresAt: expected, refreshToken: '', label: '', email: '', accountId: '', projectId: '' })
+    assert.deepEqual(parseBlob(serializeBlob(blob)), { ...blob, expiresAt: expected, refreshToken: '', label: '', email: '', accountId: '', projectId: '', selectedOrgId: '', selectedOrgName: '' })
   }
   for (const value of [NaN, Infinity, -1, '', 'bad-date']) assert.equal(normalizeExpiresAt(value), 0)
 })

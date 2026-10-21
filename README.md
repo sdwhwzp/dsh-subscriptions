@@ -102,6 +102,11 @@ graph LR
 * **Automatic 429 Failover**: When an account encounters a rate limit (`HTTP 429`, `RATE_LIMIT`, `QUOTA_EXCEEDED`), traffic instantly fails over to the next healthy account in the pool.
 * **Preemptive Quota Switching (`switchAtRemaining`)**: Automatically rotates to the next account before hitting zero if the rate-limit window reset is imminent.
 * **Dynamic Cooldown Calculation**: Parses upstream headers (`Retry-After`, `x-ratelimit-reset`, ISO dates, epoch timestamps) and auto-restores cooled-down accounts when their window resets.
+* **Synchronous Decision Tracing & Routing Explanation (#517)**: Real-time decision traces capture every account selection, rotation step, failure reason, and cascade fallback without post-hoc reconstruction, exposed in WebUI telemetry and diagnostics.
+* **Dynamic Model Catalog & Live Quota Visualizer (#507)**: Dynamic model catalog with pool-level health calculation (individual quarantine degrades rather than disables the pool), context window badges, capability tags (`vision`, `tools`, `reasoning`, `coding`, `fast`), and live reset countdowns.
+* **Cache-Aware Session Pinning (#520)**: Retains session affinity for prompt-caching providers (Claude, Codex, Antigravity, Grok) to maximize token cache reuse while strictly releasing pins when an account enters cooldown, quarantine, or quota exhaustion.
+* **Guided Diagnostic Wizard (#519)**: Interactive step-by-step checklist verifying credentials, network/proxy connectivity, token freshness, and model catalog reachability without paid inference and with full secret redaction.
+* **Desktop Electron Compatibility (#524)**: Non-HTTP app schemes (`dsh-app://`) bypass web-only host equality checks while strictly preserving loopback socket verification and fail-closed cross-site protection.
 
 ---
 
@@ -206,6 +211,43 @@ const res = await ctx.subscriptions.request('codex', '/backend-api/codex/images/
 * **In-App Toast Alerts (`enableToasts`)**: Lightweight floating toast alerts in the DSH chat interface notifying you when accounts enter quarantine, recover from cooldowns, or exceed quota safety thresholds.
 * **Automated Webhook Integration**: Instant event notifications dispatched via `notifyQuarantineEntered` and `notifyQuarantineReleased`.
 
+### 25. 🩺 Vendor Auth Doctor, Latency RTT Indicator, Dynamic Model Sync & Client Bundle Relief (v0.6.72)
+* **Vendor Auth Doctor (#543)**: Intelligent classification and explanation of provider authentication and connection errors (Cloudflare 403 / Geoblock, expired tokens, revoked sessions, missing model scopes, exhausted quotas). Displays diagnostic verdict with actionable recommendations in the account card.
+* **Latency RTT Indicator & Fast Ping Probe (#542)**: Live round-trip time measurement to vendor APIs with color-coded badges (🟢 <250ms, 🟡 <750ms, 🔴 >750ms). Dedicated ping endpoint (POST /dsh-subscriptions/ping) and latency metrics in connection tests.
+* **Dynamic Model Catalog Discovery & Sync (#541)**: One-click "Sync Models" button on account cards querying live vendor /v1/models endpoints to discover newly released and subscription-specific models dynamically without waiting for plugin updates.
+* **Client Bundle Modularization & Store Limit Relief (#540)**: Reduced lib/client.js bundle size from 217.3 KiB to < 199 KiB (>57 KiB buffer below the 256 KiB DSH Store ceiling) via createElement aliasing, CSS minification, and dynamic instruction loading.
+
+### 24. 🛡️ Resilience, Diagnostics & Fallback Enhancements (v0.6.71)
+* **Cross-Vendor Cascading Fallback & Provider Priority Ordering (#536)**: Configure fallback ordering across subscription providers with interactive reordering in WebUI.
+* **1-Click Connection Smoke Test & Latency Ping (#536)**: Test individual account connections on the spot with real-time latency badges.
+* **Live Cooldown Countdown & Availability Toasts (#536)**: Exact countdown timer for cooled-down accounts and automated toast alerts upon recovery.
+* **Proactive OAuth Token Heartbeat (#536)**: Pre-emptive background token refresh before expiry to prevent first-query latency spikes.
+* **Recent Errors Ring Buffer Inspector (#536)**: In-memory sanitized log of the last 20 runtime failures in WebUI Diagnostics.
+
+### 23. 🧠 Antigravity Tiered Models, Tool Sentinel & Stream Resilience (v0.6.69)
+* **Gemini 3 Tool Replay Sentinel (#534)**: Injects `thoughtSignature: 'skip_thought_signature_validator'` on reconstructed tool calls, enabling reliable multi-turn tool calling without Gemini 3 validation failures.
+* **Tiered Flash Models & Thinking Levels (#534)**: Exposes Gemini 3.8 and 3.7 Flash High, Medium, and Low thinking levels with upstream `*-flash-tiered` mapping.
+* **Stream Resilience & Empty Stream Retry (#534)**: Idle SSE timeout (30s), empty response detection, and transient stream retry with automatic account rotation.
+
+### 22. ⚡ xAI Grok RFC 8628 Device Authorization Flow (v0.6.68)
+* **RFC 8628 Device Code Authorization (GH #17, #532)**: Native device authorization grant support for xAI Grok. Solves the issue where xAI presents a Grok Build user-code verification page for CLI client IDs without redirecting back to loopback callbacks. Provides direct user code display and automatic token polling.
+
+### 21. 🛡️ Per-Account Claude Billing Attribution Isolation (v0.6.67)
+* **Per-Account `cc_turn_index` & `cch` Isolation (#530)**: Isolates Claude Code billing attribution state (`cch` session hash and `cc_turn_index` counter) per subscription account (`accountId`) in a bounded module Map instead of `globalThis`, preventing cross-account telemetry mixing in multi-account pools.
+* **Dynamic `cc_prompt_index` & Kill-Switch**: Automatically derives 0-based `cc_prompt_index` from multi-turn `messages` history and supports suppression via `CLAUDE_CODE_ATTRIBUTION_HEADER=0` or `disableBillingHeader: true`.
+
+### 20. 🤖 Native Copilot CLI SDK Mode & Local Tool Calling (v0.6.66)
+* **Direct Copilot CLI Integration (#508)**: Native driver `copilot-cli.js` supporting execution via local `copilot` / `github-copilot-cli` binaries with zero network token emulation risk.
+* **Smart Mode Switching (`copilotMode`)**: Choose between `auto` (prefers local CLI with graceful web API fallback), `cli` (strict CLI SDK execution), and `web` (direct OAuth/API).
+* **Multi-Source Credential Detection**: Automatically discovers tokens from GitHub CLI (`gh hosts.yml`), Copilot config files (`hosts.json`, `apps.json`), and environment variables (`GITHUB_COPILOT_TOKEN`, `GH_TOKEN`).
+* **Full Tool-Calling & Streaming**: Seamless translation of CLI process output into real-time streaming chunks and multi-turn tool-call deltas.
+
+### 19. 🧠 Session Reasoning Effort Management & Contract Matrix (v0.6.65)
+* **Session-Scoped Reasoning Effort Control (#505)**: Dynamically adjust reasoning effort (`low`, `medium`, `high`, `max`) or disable reasoning (`off`) per conversation session via REST endpoints (`GET`, `POST`, `DELETE /dsh-subscriptions/session-reasoning`).
+* **Model-Switch Invariant & Safety Guard**: Automatic suppression of reasoning parameters when switching from a reasoning model (e.g. `o1`) to a standard model (e.g. `gpt-4o`), avoiding upstream HTTP 400 parameter errors.
+* **Extended Multi-Vendor Capability**: Native reasoning support across Codex (`o1`, `o3`), Claude (`claude-3-7-sonnet*`, `claude-4.6+` thinking tokens & budgets), Antigravity/Gemini (`thinkingConfig`), Grok (`grok-3-mini`), and Kimi (`k1.5`).
+* **Comprehensive Adapter Contract Matrix (#521)**: Automated offline wire contract verification (`test/contract-matrix.test.mjs`) testing 8 providers across 7 wire protocol capabilities (`stream`, `tools`, `reasoning`, `usage`, `caching`, `auth_errors`, `rate_limit`).
+
 ### 18. 🔑 Antigravity Client Secret & Resilient CLI Refresh (v0.6.60)
 * **Client Secret in Schema (`antigravityClientSecret`)**: Configure custom Google Cloud OAuth client secrets with automatic mask redaction (`••••••`), resolving token refresh rejections for confidential OAuth clients.
 * **Zero-Config CLI Token Refresh**: Bundled public application credentials for the standard Gemini / Antigravity CLI client (`Google Gemini CLI Client ID` / `Google Gemini CLI Client Secret`), ensuring imported CLI sessions keep refreshing indefinitely without dying after 1 hour.
@@ -246,6 +288,10 @@ dsh-subscriptions:
   codexFastMode: false      # v0.4.17: service_tier priority (1.5x speed tier)
   composerQuota: 'off'      # v0.4.18: composer indicator: off | percent | bar | forecast
   enableToasts: true        # v0.6.59: real-time in-app toast alerts on quarantine and quota events
+  enableQueue: true         # v0.6.62: bounded concurrency queue to prevent bursts of 429 errors
+  accountMaxConcurrency: 2  # v0.6.62: max concurrent active streams per account
+  maxQueueSize: 20          # v0.6.62: max queue depth before load shedding / reject
+  queueTimeoutMs: 30000     # v0.6.62: max queue wait duration in ms before timeout
   # Per-slot fields (v0.4.9): expiresAt (ms epoch), proxyUrl (http/https/socks5://)
   accounts:
     codex:
@@ -262,6 +308,16 @@ dsh-subscriptions:
 ```
 
 ---
+
+### Custom Providers and Host Trust
+
+- `customVendors.authUrl`, `tokenUrl` and `baseUrl` must use `https://`. Plain `http://` is accepted only for loopback hosts (`localhost`, `127.0.0.1`, `::1`).
+- Grok `baseUrl` overrides must point to `api.x.ai`, `grok.com` / `*.grok.com`, or a loopback host; other hosts are rejected with `GROK_UNTRUSTED_HOST` so bearer tokens never leave trusted xAI infrastructure.
+- Antigravity CLI imports must configure `antigravityClientSecret`; the embedded default was removed.
+- `copilotCliPath` must point to a `copilot`, `github-copilot-cli` or `copilot-cli` binary; rename custom wrappers.
+- Credential backup uses `/dsh-subscriptions/vault/export` and `/vault/import`; the legacy `/export`, `/import`, `/export-backup` and `/import-backup` routes were removed.
+- The error buffer and diagnostics reports redact bearer tokens, API keys, JWTs and `key=value` credentials before storing or returning them.
+
 
 ## 🧠 Claude Adaptive Thinking & Effort (Added in v0.6.7)
 

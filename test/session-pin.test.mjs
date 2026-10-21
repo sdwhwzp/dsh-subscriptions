@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { pinSession, getPinnedAccountRef, pruneSessionPins } from '../lib/session-pin.js'
+import { pinSession, getPinnedAccountRef, getPinnedSessionDetails, pruneSessionPins } from '../lib/session-pin.js'
 
 const clearSessionPins = () => pruneSessionPins(Infinity)
 
@@ -53,4 +53,16 @@ test('pruning drops expired pins while retaining live bindings', () => {
   assert.equal(getPinnedAccountRef('expired'), null)
   assert.equal(getPinnedAccountRef('live'), 'REF_LIVE')
   clearSessionPins()
+})
+
+test('pin details cannot mutate the retained account and expire at their deadline', () => {
+  clearSessionPins()
+  pinSession('details', 'REF_A', { provider: 'codex', model: 'model-a' })
+  const details = getPinnedSessionDetails('details')
+  assert.equal(details.provider, 'codex')
+  assert.equal(details.model, 'model-a')
+  details.accountRef = 'REF_OTHER'
+  assert.equal(getPinnedAccountRef('details'), 'REF_A')
+  assert.equal(getPinnedSessionDetails('details', details.expiresAt + 1), null)
+  assert.equal(getPinnedAccountRef('details'), null)
 })

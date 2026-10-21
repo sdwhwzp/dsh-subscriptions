@@ -28,6 +28,7 @@ function mountClient(payloadFor = () => ({ config: { slots: [], codexFastMode: t
   }
   runInNewContext(source, {
     window: { __ModuleLoader__: { load(entry) { factory = entry.factory } } },
+    AbortController,
     setInterval: () => 1, clearInterval() {}, setTimeout: () => 1,
     fetch: async (path, options) => {
       requests.push({ path, options })

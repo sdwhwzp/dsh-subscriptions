@@ -41,8 +41,8 @@ for (const [id, name, authHost] of VENDORS) {
     const defaults = vendor.defaults()
     assert.ok(defaults.apiBase && defaults.apiBase.startsWith('https://'), 'apiBase must be https')
     assert.ok(Array.isArray(defaults.models) && defaults.models.length > 0, 'non-empty model list')
-    assert.match(vendor.authorizeUrl(), /^https:/)
-    assert.ok(vendor.authorizeUrl().includes(authHost), 'authorizeUrl host mismatch')
+    assert.match(vendor.authorizeUrl(defaults, { challenge: 'fixture-challenge', state: 'fixture-state' }), /^https:/)
+    assert.ok(vendor.authorizeUrl(defaults, { challenge: 'fixture-challenge', state: 'fixture-state' }).includes(authHost), 'authorizeUrl host mismatch')
     const models = await vendor.listModels()
     assert.ok(models.length > 0)
     for (const m of models) {
@@ -118,8 +118,9 @@ test('copilot telemetry headers impersonate the vscode integration', () => {
 test('ernie refreshes token from api key + secret and appends access_token', async () => {
   const calls = []
   const fetchImpl = async (url, init) => {
-    calls.push({ url: String(url), body: init.body ? JSON.parse(init.body) : undefined })
-    if (String(url).includes('grant_type=client_credentials')) {
+    const tokenRequest = String(url) === ernie.ERNIE_OAUTH_URL
+    calls.push({ url: String(url), body: tokenRequest ? Object.fromEntries(new URLSearchParams(init.body)) : JSON.parse(init.body) })
+    if (tokenRequest) {
       return Response.json({ access_token: 'tok-1', expires_in: 2592000 })
     }
     return new Response(sse([
@@ -135,10 +136,11 @@ test('ernie refreshes token from api key + secret and appends access_token', asy
     headers: {},
     config: {},
   })) chunks.push(chunk)
-  assert.equal(calls[0].url, ernie.ERNIE_OAUTH_URL + '?grant_type=client_credentials&client_id=key&client_secret=secret')
+  assert.equal(calls[0].url, ernie.ERNIE_OAUTH_URL)
+  assert.deepEqual(calls[0].body, { grant_type: 'client_credentials', client_id: 'key', client_secret: 'secret' })
   assert.match(calls[1].url, /completions_pro\?access_token=tok-1$/)
   assert.equal(calls[1].body.stream, true)
-  assert.equal(blob.accessToken, 'tok-1', 'refreshed token must be persisted back to the blob')
+  assert.deepEqual(blob, { apiKey: 'key', secretKey: 'secret' }, 'request-local refresh does not mutate stored credentials')
   assert.ok(chunks.some((c) => c.type === 'text-delta'))
 })
 

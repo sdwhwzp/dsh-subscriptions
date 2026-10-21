@@ -90,7 +90,7 @@ test('every vendor forwards the caller AbortSignal to its fetch', async () => {
 
 test('every error code in lib belongs to the known inventory', () => {
   const KNOWN = new Set([
-    'AUTH', 'RATE_LIMIT', 'QUOTA', 'VENDOR', 'LICENSE_REQUIRED', 'VALIDATION_REQUIRED',
+    'ENCRYPTED_AT_REST', 'EMPTY_RESPONSE', 'GROK_UNTRUSTED_HOST', 'AUTH', 'RATE_LIMIT', 'QUOTA', 'VENDOR', 'LICENSE_REQUIRED', 'VALIDATION_REQUIRED',
     'INTERNAL_ERROR', 'EXHAUSTED', 'TIMEOUT', 'ABORTED', 'METHOD', 'FORBIDDEN',
     'JSON', 'PARAMS', 'PASSPHRASE', 'DECRYPT', 'FORMAT', 'TOKEN', 'EMPTY',
     'LOGOUT', 'RESET', 'CHECK', 'PROXY', 'PROXY_FAIL', 'NOT_CONFIGURED', 'PROVIDER',
