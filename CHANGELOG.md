@@ -1,3 +1,201 @@
+## [0.7.15] - 2026-10-21
+
+### Changed
+- Settings split into Overview / Accounts / Routing / Models / Vault / Notifications / Advanced panes (#767).
+- The overloaded groupRotation was split into display, sources, packs, vault and notification groups; header, Add provider, picker and save footer stay visible on every tab.
+
+### Verification
+- Full `npm test`: 938/938 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+## [0.7.14] - 2026-10-21
+
+### Changed
+- Settings now render as a full `settings.section` page on DSH 0.2, with the legacy `plugins.item`/row seats kept as fallback (#764).
+- All setting groups are collapsed by default; the status/action header stays visible.
+- Add provider opens a searchable modal picker instead of an inline gallery.
+- Client CSS moved to `lib/client.css` and served from `/dsh-subscriptions/client.css`; `client.js` is now 232 KB.
+
+### Verification
+- Full `npm test`: 937/937 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+- Pack: 121 files, client.js 232 348 B, client.css 25 319 B.
+## [0.7.13] - 2026-10-21
+
+### Fixed
+- Add provider gallery: clicking ChatGPT Codex (or any hidden provider) now immediately reveals its slot and Connect button instead of silently adding an invisible blank slot (#761).
+
+### Verification
+- Full `npm test`: 934/934 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+- client.js 255 985 B.
+## [0.7.12] - 2026-10-21
+
+### Fixed
+- Per-device pre-pull snapshots now restore with the key recorded at capture time; legacy snapshots fall back to the base key (#754).
+- `/health` probes the actual Ollama endpoint instead of treating `ollamaFallback` as availability, and no longer performs a full account view per request (#755).
+- `/oauth/headless-info` requires same-origin/loopback and rejects non-http(s) URLs; query host/user are ignored (#756).
+- `npm run typecheck` is green and runs as part of `npm test` (#757).
+- New Sources/packs/snapshots/webhook UI strings use en/zh locale keys (#758).
+
+### Verification
+- Full `npm test`: 933/933 pass (includes typecheck).
+- `dsh-plugin-preflight`: FAIL=0.
+- `npm pack`: client.js 255 965 B (below 256 000 practical threshold).
+## [0.7.11] - 2026-10-21
+
+### Added
+- Per-device vault keys: stable device id, derived passphrase, device-suffixed WebDAV/Gist/S3 objects, legacy shared vault fallback (#749).
+- `dsh-subscriptions tui [--once]`: ANSI dashboard with health, accounts, sources and vault snapshots; r refresh, q quit (#750).
+- `webhookFormat: native | notify` with dsh-plugin-notify compatible `{kind,title,sessionId,summary,reason}` payloads (#751).
+
+### Verification
+- Full `npm test`: 926/926 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+## [0.7.10] - 2026-10-21
+
+### Added
+- Prometheus `GET /dsh-subscriptions/metrics`: configured/usage/cooldown gauges, selected source, request and alert counters (#744).
+- Source-aware `/health`: connected accounts, key-rotation, Ollama, webhook, snapshots; `healthy|degraded` (#745).
+- `/diagnostics` includes source chain and vault snapshot stats; `doctor` prints snapshots (#746).
+
+### Verification
+- Full `npm test`: 919/919 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+## [0.7.9] - 2026-10-21
+
+### Added
+- Durable vault snapshots at `DSH_HOME/storages/dsh-subscriptions/vault-snapshots.json` (temp+rename, 0600, corrupt-file tolerant) (#739).
+- 2MB byte budget with oldest-first eviction and `stats()` (#740).
+- Snapshot stats in `/vault/snapshots`, CLI `vault status`, and the settings panel (#741).
+
+### Verification
+- Full `npm test`: 915/915 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+## [0.7.8] - 2026-10-21
+
+### Added
+- Bounded encrypted vault snapshot store; every pull captures a `pre-pull` snapshot (#734).
+- GET/POST `/vault/snapshots` and POST `/vault/snapshots/restore` with revision/CAS (#735).
+- CLI `vault snapshots`, `vault snapshot [label]`, `vault restore <id>` (#735).
+- Vault snapshots settings panel with create/restore (#736).
+
+### Verification
+- Full `npm test`: 912/912 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+## [0.7.7] - 2026-10-21
+
+### Security
+- Webhook URLs reject userinfo, non-http(s) schemes and loopback/private/link-local/CGNAT hosts by default; `webhookAllowPrivate` is the explicit opt-in (#729).
+
+### Added
+- POST `/dsh-subscriptions/webhook/test` and a Send test button with delivered/failed feedback (#730).
+- Quota widget candidate popover: source availability, cooldown and healthy-key counts, plus Open settings (#731).
+
+### Verification
+- Full `npm test`: 907/907 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+## [0.7.6] - 2026-10-21
+
+### Added
+- Provider packs settings panel: list, paste JSON, server-side validation, revisioned save and masked export (#724).
+- Webhook URL, Webhook secret and Digest interval fields in settings (#725).
+
+### Fixed
+- Restored the expiry warning hint after the notification fields landed (#725).
+
+### Performance
+- Key-rotation status reads use a 10s TTL cache with in-flight de-duplication and an explicit bypass (#726).
+
+### Verification
+- Full `npm test`: 902/902 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+## [0.7.5] - 2026-10-21
+
+### Fixed
+- `/dsh-subscriptions/sources` read a non-existent `hasToken` field, so every OAuth account was reported unavailable and no source was selected. It now reads `configured` (#709, #716).
+
+### Verification
+- Full `npm test`: 892/892 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+## [0.7.4] - 2026-10-21
+
+### Added
+- Read-only `dsh-key-rotation` bridge and `GET /dsh-subscriptions/sources`: OAuth → API key → Ollama, health/cooldown, no key values and no duplicate rotation (#709).
+- Sources panel in Subscriptions settings (#713).
+- `sources` CLI command with `--json` (#714).
+- Source badge in the floating/docked quota widget (#715).
+- `config` and `set <dot.path> <value>` CLI commands with revision/CAS (#710).
+
+### Fixed
+- Floating quota widget now persists its position across reloads (#711).
+
+### Verification
+- Full `npm test`: 891/891 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+## [0.7.3] - 2026-10-21
+
+### Added
+- DSH market metadata (bilingual name/description, category, tags, default providers) and a repeatable listing checklist (#693).
+- Data-only provider pack SDK: `normalizeVendorPack`/`registerVendorPack`, `providerPacks` config and docs; no eight-file vendor edit (#694).
+- Headless/remote `dsh-subscriptions` CLI (`status`, `usage --csv`, `fast`), overlay example and docs (#695).
+- Floating/docked quota capsule with off/docked/floating modes and pointer dragging (#688).
+- Vault v2: conflict-reporting slot merge, provider allowlist for selective sync, encrypted snapshots/restore (#691).
+- Signed (`x-dsh-signature`) and retrying webhook delivery with 24h notification digest (#696).
+
+### Changed
+- Key ownership is explicit: `dsh-key-rotation` owns API-key pools and cooldowns; this plugin owns OAuth subscriptions. No duplicate rotation (#689).
+
+### Verification
+- Full `npm test`: 880/880 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+## [0.7.2] - 2026-10-21
+
+### Fixed
+- Native tools declare the host-required output schema/render (#683).
+- Duplicate tool names owned by other DSH plugins no longer abort activation (#683).
+
+### Packaging
+- 0.7.0 and 0.7.1 were tagged but not published: 0.7.0 failed the tool output contract, 0.7.1 hit duplicate x_search. 0.7.2 is the first working 0.7.x npm release.
+
+### Verification
+- Full `npm test`: 869/869 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+
+## [0.7.1] - 2026-10-21
+
+### Fixed
+- Native tools now declare the host-required output { schema, render }; 0.7.0 failed to activate with "tool image_generate must declare output" (#683).
+
+### Added
+- read-only /usage with accounts and calls, JSON or CSV, including quota source, age, reset and health (#687).
+- modelPlans and plan-aware picker filtering, with plan metadata on models (#690).
+- credential-free route/billing/quota-confidence report in /diagnostics (#692).
+
+### Packaging
+- 0.7.0 was tagged but never published to npm because the tool contract prevented activation. Use 0.7.1.
+
+### Verification
+- Full `npm test`: 868/868 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+
+## [0.7.0] - 2026-10-21
+
+### DSH-native Parity
+- Per-model display names, hidden models, context-window overrides and reasoning defaults; session-scoped Codex Speed with /fast (#681).
+- Composer quota follows the provider of the current model and can be hidden from the status bar (#682).
+- Native tools: image_generate (saved workspace files), x_search, web_search and video_generate submit (#683).
+- Rate-limit waits use only a disclosed reset; retryAfterMs/resetAt flow to dsh-llm-retry with a bounded max wait (#684).
+- Settings show connected providers first, hide the rest behind Add provider, and expose VIP/Pro/tags/weight/queue per slot (#685).
+- Conflicting DSH subscription plugins are detected, logged and exposed in /diagnostics (#686).
+
+### Behavior changes
+- A 429 without a disclosed reset no longer parks the account for a guessed 2-24h vendor window; local backoff applies.
+- `tools` is now a required injected service for the native media tools.
+
+### Verification
+- Full `npm test`: 863/863 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+
 ## [0.6.91] - 2026-10-20
 
 ### Security

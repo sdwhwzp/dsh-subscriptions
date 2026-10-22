@@ -9,7 +9,8 @@ const source = readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8'
 
 // Render the shipped slot components without a DOM; their effects and button
 // handlers use the same fetch implementation as the browser client factory.
-function mountClient(payloadFor = () => ({ config: { slots: [], codexFastMode: true }, revision: 7, accounts: [], providers: [] })) {
+function mountClient(payloadFor = () => ({ config: { slots: [], codexFastMode: true }, revision: 7, accounts: [], providers: [] }), { sectionAvailable = true } = {}) {
+  const timers = []
   const requests = []
   const slots = new Map()
   const states = new Map()
@@ -29,7 +30,8 @@ function mountClient(payloadFor = () => ({ config: { slots: [], codexFastMode: t
   runInNewContext(source, {
     window: { __ModuleLoader__: { load(entry) { factory = entry.factory } } },
     AbortController,
-    setInterval: () => 1, clearInterval() {}, setTimeout: () => 1,
+    setInterval: () => 1, clearInterval() {},
+    setTimeout: (callback, delay) => { timers.push({ callback, delay }); return timers.length }, clearTimeout() {},
     fetch: async (path, options) => {
       requests.push({ path, options })
       return { ok: true, json: async () => payloadFor(path, options) }
@@ -40,12 +42,12 @@ function mountClient(payloadFor = () => ({ config: { slots: [], codexFastMode: t
     effect: fn => fn(),
     locale: { bind: () => key => key, register: () => () => {} },
     slots: {
-      inject: (_name, fn) => fn(),
+      inject: (name, fn) => name === 'settings.section' && !sectionAvailable ? () => {} : fn(),
       register(spec, component) { slots.set(spec.name, component); return () => {} },
     },
   })
   return {
-    requests, slots,
+    requests, slots, timers,
     render(component, props = {}) {
       hooks = states.get(component) || []
       states.set(component, hooks)
@@ -85,7 +87,7 @@ test('account status and settings reads omit Referer across a Host-rewriting gat
 
 test('settings page reads and writes preserve methods, payload and revision with the shared request policy', async () => {
   const client = mountClient()
-  const card = client.render(client.slots.get('plugins.row.config'), { view: 'page' }).tree
+  const card = client.render(client.slots.get('settings.section')).tree
   const section = find(card, node => node.type.name === 'SubsSection')
   const mounted = client.render(section.type, section.props)
   for (const effect of mounted.effects) effect()
@@ -110,7 +112,7 @@ test('cache analysis uses protected management requests and renders the returned
     if (path.endsWith('/analyze-session')) return { ok: true, analysis: { weightedCacheHitPercent: 25, savedTokens: 25, totalTokens: 110 } }
     return { config: { slots: [] }, accounts: [], providers: [] }
   })
-  const card = client.render(client.slots.get('plugins.row.config'), { view: 'page' }).tree
+  const card = client.render(client.slots.get('settings.section')).tree
   const section = find(card, node => node.type.name === 'SubsSection')
   for (const effect of client.render(section.type, section.props).effects) effect()
   await setImmediate()
@@ -126,4 +128,17 @@ test('cache analysis uses protected management requests and renders the returned
   for (const { options } of client.requests) assert.equal(options.referrerPolicy, 'no-referrer')
   const rendered = client.render(section.type, section.props).tree
   assert.ok(find(rendered, node => node.children.includes('cacheHitRate: 25% · tokensSaved: 25 / 110')))
+})
+
+test('native settings owns one page and older hosts register plugin seats after the fallback delay', () => {
+  const modern = mountClient()
+  for (const timer of modern.timers.filter(row => row.delay === 250)) timer.callback()
+  assert.equal(typeof modern.slots.get('settings.section'), 'function')
+  assert.equal(modern.slots.has('plugins.row.config'), false)
+  const legacy = mountClient(undefined, { sectionAvailable: false })
+  assert.equal(legacy.slots.size, modern.slots.size - 1)
+  for (const timer of legacy.timers.filter(row => row.delay === 250)) timer.callback()
+  assert.equal(legacy.slots.has('settings.section'), false)
+  const page = legacy.render(legacy.slots.get('plugins.row.config'), { view: 'page' }).tree
+  assert.ok(find(page, node => node.type.name === 'SubsSection'))
 })

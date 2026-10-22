@@ -125,7 +125,7 @@ for (const enabled of [false, true]) {
 test('plugin metadata declares the cordis contract', async () => {
   const mod = await loadPlugin()
   assert.equal(mod.name, '@goodandready/dsh-subscriptions')
-  assert.deepEqual(mod.inject, ['llm', 'credentials', 'webServer', 'settings'])
+  assert.deepEqual(mod.inject, ['llm', 'credentials', 'webServer', 'settings', 'tools'])
   assert.equal(typeof mod.apply, 'function')
   assert.equal(typeof mod.Config, 'function')
 })
@@ -289,6 +289,7 @@ test('Harness profile settings save against the owning entry and read its replac
   ctx.settings = {}
   const edits = []
   ctx.get = name => {
+    if (name === 'principalAccess') return undefined
     assert.equal(name, 'configEditor')
     return {
       entries: () => [entry],

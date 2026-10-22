@@ -20,11 +20,12 @@ test('client factory uses CommonJS shim and scoped id', () => {
   assert.match(src, /\/dsh-subscriptions\/oauth/)
 })
 
-test('registers an independent settings tab with NS id and no rogue settings.section', () => {
-  assert.match(src, /settings\.plugins\.tab/)
-  assert.match(src, /id: NS/)
-  // #282: plugin must not register top-level settings.section
-  assert.doesNotMatch(src, /settings\.section/)
+test('registers the native settings section with legacy plugin seats as fallback', () => {
+  assert.match(src, /name: 'settings\.section'/)
+  assert.match(src, /id: ROW_ID/)
+  assert.match(src, /function SubsSettingsPage/)
+  assert.match(src, /if \(!hasSection\) registerLegacySeats\(\)/)
+  assert.match(src, /name: 'plugins\.row\.config'/)
 })
 
 test('exposes schema controls in SubsSection', () => {

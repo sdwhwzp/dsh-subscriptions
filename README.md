@@ -414,3 +414,5 @@ The 0.6.58 fork retains namespaced adapters when the LLM registry appears late. 
 The 0.6.60 fork retains upstream Antigravity refresh and Windows credential-import support. Account discovery exposes metadata only; credentials are read through the explicit administrator-authorized import route. The browser request tests cover the new notification state alongside the existing gateway request policy.
 
 The Antigravity client secret supports runtime settings updates and stays redacted in public responses; unrelated settings edits preserve the stored secret.
+
+In gateway deployments, model-callable subscription image, video, web and X tools require an authenticated administrator and revalidate access before using shared credentials. Unloading the account service refuses subsequent tool calls. Local profiles without a principal-access provider retain upstream tool behavior. Harness 0.2 uses the native Settings section; older clients retain the plugin-card fallback.
