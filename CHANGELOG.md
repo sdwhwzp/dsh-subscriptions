@@ -1,3 +1,74 @@
+## [0.7.21] - 2026-10-23
+
+### Fixed
+- **GitHub #20**: Claude models now declare `inputModalities: ['text','image']` for built-in, configured and remotely discovered models, so DSH's `read_image` gate accepts the route.
+- Durable image blocks `{type:'image', attachment}` are resolved through the host `attachments` service before request serialization and converted to Anthropic base64 blocks.
+- `anthropicPayload()` now preserves images inside `role: 'tool'` results as `tool_result` content blocks instead of flattening them to text.
+
+### Verification
+- Deterministic #20 tests: modality advertisement, attachment resolution, tool-result image block.
+- Full `npm test`: 949/949; preflight FAIL=0.
+
+## [0.7.20] - 2026-10-23
+
+### Fixed
+- **GitHub #19**: `QuotaCapsule` no longer violates the Rules of Hooks. The popover `useEffect` moved above the conditional `return null`, so the hook count stays constant when config resolves or the widget is disabled.
+- Added a static regression test that fails if any hook appears after the component's early return.
+
+### Verification
+- Full `npm test`; `dsh-plugin-preflight` FAIL=0.
+
+## [0.7.19] - 2026-10-22
+
+### Security
+- **#782**: every mutating route now requires an explicit `Origin` or `Referer` matching `Host`; a loopback socket alone is no longer trusted, closing the LAN/Tailscale bridge write path.
+
+### Fixed
+- **#776**: one `numberOrNull` (null/undefined/empty string -> null); missing quota values no longer become 0% or 100%.
+- **#777**: #322 tests keep the event loop alive, loopback tests use ephemeral ports, SSE #450 timing has a parallel-safe margin.
+- **#778**: `npm test` now fails when any packed file exceeds 262 144 B and warns above 256 000 B.
+- **#780**: DESIGN.md marks the 2026-09-10 settings decision as superseded by 2026-10-21.
+- **#781**: removed `pnpm-lock.yaml`, synced the legacy DEV root, and removed test-only exports from production modules.
+
+### Docs
+- **#779**: documented all external HTTP API routes in README.md, README.ru.md and README.zh.md.
+
+### Verification
+- `npm test`: 945/945, cancelled 0.
+- Four concurrent `npm test` runs: all exit 0.
+- `dsh-plugin-preflight`: FAIL=0, no dead-export warning.
+
+## [0.7.18] - 2026-10-22
+
+### Fixed
+- **#18**: subscription-native `image_generate`, `x_search`, `web_search` and `video_generate` are now **opt-in** (`nativeTools: true` or `DSH_SUBSCRIPTIONS_NATIVE_TOOLS=1`). They no longer shadow required builtin tools during boot, so `dsh-image-generation` cannot abort startup.
+- Registration now also skips names already present in `ctx.tools` before calling `register`.
+
+### Verification
+- Full `npm test`: 941/941.
+- `dsh-plugin-preflight`: FAIL=0.
+
+## [0.7.17] - 2026-10-22
+
+### Fixed
+- Status header now localizes the host-latency text instead of hardcoding `Host online (... ms)`.
+- Provider count now uses the localized `subsPoolTitle` label instead of `Pool: N accounts`.
+- Russian UI remaining labels are covered by `dsh-russian-lang` 0.4.5 (`subsLogged`, `runSmoke`).
+
+### Verification
+- Full `npm test` pass; `dsh-plugin-preflight` FAIL=0.
+- WEB 111 and Desktop updated to 0.7.17.
+
+## [0.7.16] - 2026-10-21
+
+### Fixed
+- Settings tabs now filter panes correctly: `data-tab` is on the real root, nested groups are filtered, and Overview/Accounts hide the settings container (#770).
+- Peer ranges accept DSH `0.2.1-rc.2` for credentials, host-webserver, llm and settings (#771).
+
+### Verification
+- Full `npm test`: 939/939 pass.
+- `dsh-plugin-preflight`: FAIL=0.
+- WEB 111 and Desktop both on DSH 0.2.1-rc.2; health/CSS verified.
 ## [0.7.15] - 2026-10-21
 
 ### Changed

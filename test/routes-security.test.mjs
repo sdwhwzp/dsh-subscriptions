@@ -103,7 +103,7 @@ test('cache analysis accepts a same-origin POST with token usage', async () => {
   const { analyze } = harness()
   const request = Readable.from([Buffer.from(JSON.stringify({ events: [{ usage: { inputTokens: 100, cacheReadTokens: 25, outputTokens: 10 } }] }))])
   request.method = 'POST'
-  request.headers = { host: 'localhost:3081', 'sec-fetch-site': 'same-origin' }
+  request.headers = { host: 'localhost:3081', origin: 'http://localhost:3081', 'sec-fetch-site': 'same-origin' }
   const response = res()
   await analyze.handler(request, response)
   assert.equal(response.code, 200)

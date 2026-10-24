@@ -132,7 +132,7 @@ test('updater: fork builds never advertise or run a registry update', async () =
   let body = ''
   await registeredRoute.handler({
     method: 'POST',
-    headers: { 'x-dsh-plugin-update': '1', host: '127.0.0.1:3000' },
+    headers: { 'x-dsh-plugin-update': '1', host: '127.0.0.1:3000', origin: 'http://127.0.0.1:3000' },
     socket: { remoteAddress: '127.0.0.1' },
   }, { writeHead(code) { statusCode = code }, setHeader() {}, end(chunk) { if (chunk) body += chunk } })
   assert.equal(statusCode, 200)

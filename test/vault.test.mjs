@@ -50,7 +50,7 @@ function routes({ saveFails = false, settingsAvailable = true } = {}) {
   const handler = registered.find(row => row.path.endsWith('/vault/import')).handler
   return {
     writes, config: () => config,
-    async send(vault, headers = { 'sec-fetch-site': 'same-origin' }) {
+    async send(vault, headers = { host: 'localhost:3081', origin: 'http://localhost:3081', 'sec-fetch-site': 'same-origin' }) {
       const req = Readable.from([Buffer.from(JSON.stringify({ vault, passphrase }))])
       req.method = 'POST'; req.headers = headers
       const result = {}

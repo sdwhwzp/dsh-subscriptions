@@ -4,7 +4,7 @@ import { createCipheriv, pbkdf2Sync } from 'node:crypto'
 import { codexResponsesBody, normalizeCodexCallId } from '../lib/messages.js'
 import { normalizeJsonSchema } from '../lib/tools-normalizer.js'
 import { decryptWithPassphrase, encryptWithPassphrase } from '../lib/crypto.js'
-import { isSameOrigin, isTrustedSettingsRequest } from '../lib/http.js'
+import { isTrustedSettingsRequest } from '../lib/http.js'
 
 test('long Codex call ids preserve call/result pairing without prefix collisions', () => {
   const id = 'tool-call-'.repeat(12)
@@ -45,10 +45,13 @@ test('default vault export and both older encrypted formats remain readable', ()
   assert.throws(() => decryptWithPassphrase(legacy, 'wrong-password'))
 })
 
-test('origin comparison rejects invalid URLs and distinct protocol or port', () => {
-  assert.equal(isSameOrigin('https://EXAMPLE.test/a', 'https://example.test/b'), true)
-  for (const value of ['not-url', 'http://example.test', 'https://example.test:3081']) {
-    assert.equal(isSameOrigin('https://example.test', value), false)
+test('mutations require an explicit matching browser origin even over loopback', () => {
+  const request = headers => ({ method: 'POST', headers: { host: 'localhost:3081', ...headers }, socket: { remoteAddress: '127.0.0.1' } })
+  assert.equal(isTrustedSettingsRequest(request({})), false)
+  assert.equal(isTrustedSettingsRequest(request({ 'sec-fetch-site': 'same-origin' })), false)
+  assert.equal(isTrustedSettingsRequest(request({ origin: 'http://localhost:3081' })), true)
+  for (const origin of ['not-url', 'https://unrelated.test', 'http://localhost:3082']) {
+    assert.equal(isTrustedSettingsRequest(request({ origin })), false)
   }
 })
 

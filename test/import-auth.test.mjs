@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { discoverLocalCliSessions, loadLocalCliBlob, setWindowsCredentialReaderForTest } from '../lib/import-auth.js'
+import { discoverLocalCliSessions, loadLocalCliBlob, windowsCredentialReader } from '../lib/import-auth.js'
 
 // #296: the CLI importers read local credential files. A fixture home
 // keeps the tests hermetic - no real HOME, no env mutation for the
@@ -121,7 +121,8 @@ test('loadLocalCliBlob rejects unsupported providers explicitly', async () => {
 
 test('Windows Antigravity discovery reports metadata and explicit import returns its credentials', async () => {
   const credential = { email: 'fixture@example.com', token: { access_token: 'fixture-access', refresh_token: 'fixture-refresh' } }
-  setWindowsCredentialReaderForTest(() => credential)
+  const previousReader = windowsCredentialReader.current
+  windowsCredentialReader.current = () => credential
   try {
     await withHome({}, async (home) => {
       const found = await discoverLocalCliSessions({ home })
@@ -134,18 +135,19 @@ test('Windows Antigravity discovery reports metadata and explicit import returns
       assert.equal(blob.refreshToken, 'fixture-refresh')
     })
   } finally {
-    setWindowsCredentialReaderForTest(null)
+    windowsCredentialReader.current = previousReader
   }
 })
 
 test('an empty Windows credential store does not advertise an importable session', async () => {
-  setWindowsCredentialReaderForTest(() => null)
+  const previousReader = windowsCredentialReader.current
+  windowsCredentialReader.current = () => null
   try {
     await withHome({}, async (home) => {
       assert.equal((await discoverLocalCliSessions({ home })).antigravity, undefined)
       await assert.rejects(() => loadLocalCliBlob('antigravity', { home }), /no local CLI session found/)
     })
   } finally {
-    setWindowsCredentialReaderForTest(null)
+    windowsCredentialReader.current = previousReader
   }
 })

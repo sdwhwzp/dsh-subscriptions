@@ -95,7 +95,7 @@ test('smoke route returns 400 if no connected account', async () => {
 
     const req = {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
+      headers: { host: 'localhost:3081', origin: 'http://localhost:3081', 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
       on(event, handler) {
         if (event === 'data') handler(Buffer.from('{}'))
         if (event === 'end') handler()

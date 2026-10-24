@@ -106,7 +106,7 @@ for (const enabled of [false, true]) {
       const routed = await registered.promise
       let configBody
       await state.routes.find(row => row.path === '/dsh-subscriptions/config').handler(
-        { method: 'GET', headers: { 'sec-fetch-site': 'same-origin' } },
+        { method: 'GET', headers: { host: 'localhost:3081', origin: 'http://localhost:3081', 'sec-fetch-site': 'same-origin' } },
         { writeHead() {}, end(body) { configBody = JSON.parse(body) } },
       )
       assert.deepEqual(configBody.accounts.map(account => account.healthScore), [100, 100])
@@ -218,7 +218,7 @@ async function configRequest(state, method = 'GET', config) {
   }
   const req = Readable.from(config ? [Buffer.from(JSON.stringify(config))] : [])
   req.method = method
-  req.headers = { 'sec-fetch-site': 'same-origin' }
+  req.headers = { host: 'localhost:3081', origin: 'http://localhost:3081', 'sec-fetch-site': 'same-origin' }
   let status, body
   await state.routes.find(row => row.path === '/dsh-subscriptions/config').handler(req, {
     writeHead(code) { status = code },

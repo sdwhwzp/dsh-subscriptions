@@ -64,7 +64,7 @@ test('POST /dsh-subscriptions/check returns latencyMs and account health', async
 
   const req = new EventEmitter()
   req.method = 'POST'
-  req.headers = { host: '127.0.0.1:3080', 'content-type': 'application/json' }
+  req.headers = { host: '127.0.0.1:3080', origin: 'http://127.0.0.1:3080', 'content-type': 'application/json' }
 
   const res = makeMockRes()
   const p = checkRoute.handler(req, res)
