@@ -15,7 +15,7 @@ test('current tool failures and base64 images survive Anthropic request normaliz
     { role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'aGVsbG8=' } }] },
   ] })
   const blocks = body.messages.flatMap(message => message.content)
-  assert.deepEqual(blocks.find(block => block.type === 'tool_result'), { type: 'tool_result', tool_use_id: 'call_1', is_error: true, content: 'permission denied', cache_control: { type: 'ephemeral' } })
+  assert.deepEqual(blocks.find(block => block.type === 'tool_result'), { type: 'tool_result', tool_use_id: 'call_1', is_error: true, content: 'permission denied' })
   assert.deepEqual(blocks.find(block => block.type === 'image').source, { type: 'base64', media_type: 'image/png', data: 'aGVsbG8=' })
 })
 
