@@ -1,3 +1,220 @@
+## [0.7.43] - 2026-10-28
+
+### Tests
+- **#837**: added account-route branch tests; `lib/routes/accounts.js` coverage is 90.96%.
+- **#837**: added message-adapter cases for tool-call aliases and orphan reconciliation; `lib/messages.js` coverage is 93.38%.
+- Global coverage is 87.44% lines / 74.23% branches / 80.80% functions.
+
+## [0.7.42] - 2026-10-28
+
+### Added
+- **#798**: npm metadata resolver for Codex/Claude client versions with local-CLI and built-in fallback, 6h cache, config override, and a source badge in Settings.
+- **#815**: Codex subscription search registered through the host `web` seam as `subscriptions-codex`, with citations, retry policy and bounded text.
+
+### Changed
+- **#816**: tool-call IDs (including `toolUseId`) and settings RPC results now go through one compatibility layer; unsupported settings APIs raise `DSH_HOST_INCOMPATIBLE`.
+
+### Verification
+- Full `npm test` green; coverage gates pass; pack-size OK (client 251588 B).
+
+## [0.7.41] - 2026-10-28
+
+### Fixed
+- **#803**: `proxyBypass` is now applied by the real per-account fetch path; matching hosts go direct while other requests keep the proxy.
+- Accounts advanced settings expose a comma-separated proxy-bypass field; slot normalization and account views preserve it.
+
+### Verification
+- Full `npm test`: 1006/1006; coverage gates pass; pack-size OK (client 250939 B).
+
+## [0.7.40] - 2026-10-28
+
+### Added
+- **#803**: per-account `proxyBypass` config, host/domain bypass matching and proxy-vs-provider connectivity classification.
+- **#817**: validated named tiers with isolated member selection and no cross-tier fallback.
+- **#832**: frozen session tool-policy snapshots with session lookup.
+- **#834**: explicit Claude `cli-synced` vs `standalone` modes and Keychain write ownership guard.
+- **#815**: Codex web-search result normalization with citations, bounded text and retry-delay policy.
+
+### Verification
+- Full `npm test`: 1006/1006; coverage gates pass; pack-size OK.
+
+## [0.7.39] - 2026-10-28
+
+### Added
+- **#787**: true per-pool round-robin cursor, lowest-latency strategy by local telemetry, and trace decision reasons (`round_robin`, latency ordering).
+- **#788**: provider-scoped `modelAccountRules` glob rules; first match wins, rule account is preferred, unavailable rule accounts fall back to the normal pool.
+- **#798**: client-version resolver with config/npm/local/fallback precedence and TTL cache helpers.
+- **#816**: centralized compat aliases for tool-call ids, RPC result shapes and unsupported-host errors.
+- **#837**: Node coverage is part of `npm test` with global thresholds (lines 85, branches 70, functions 75); CI now fails below them.
+
+### Verification
+- Full `npm test`: 1001/1001; coverage gates pass; pack-size OK (client 250268 B).
+
+## [0.7.38] - 2026-10-28
+
+### Fixed
+- **GitHub #27**: Grok model resolution no longer treats a failed CLI metadata fetch as a capability verdict. The resolution path uses the per-account last-known-good catalog and does not perform a live metadata fetch on every request.
+- The CLI catalog cache keeps the previous snapshot on transport failure or empty response, and grok-4.x gets a conservative high/medium/low reasoning fallback when metadata is unavailable.
+- Streaming and resolution now share the same fallback, so an explicit effort no longer silently disappears.
+
+### Verification
+- Full `npm test`: 995/995; pack-size OK.
+- Regression covers unreachable CLI metadata and the grok-4.x heuristic.
+
+## [0.7.37] - 2026-10-28
+
+### Added
+- **#822**: media failure taxonomy and retry policy; ambiguous post-submit failures are never retried.
+- **#800**: conservative media-pool account selection with default preference and cooldown/quota/disabled filtering.
+- **#809**: per-provider tool policy config (`toolPolicies`) and allow checks.
+- **#835/#836**: safe provider icon URL resolution with initials fallback and URL allowlisting.
+
+### Verification
+- Full `npm test`: 993/993; pack-size OK (client 250268 B).
+
+## [0.7.36] - 2026-10-28
+
+### Added
+- **#790**: per-provider batch Check all / Refresh quotas / Import all CLI with bounded concurrency (2), live progress and cancel.
+- **#791**: Vision / Tools / Thinking capability badges on account cards.
+- **#794**: account reorder with up/down controls; order persists through Save.
+- **#793**: copy account ref quick action alongside existing pause/reset/check actions.
+- **#808**: reset-credit panel already exposes expiry, confirmation and refresh; covered by the existing flow.
+
+### Verification
+- Full `npm test`: 989/989; pack-size OK (client 250268 B).
+
+## [0.7.35] - 2026-10-28
+
+### Changed
+- Refactored the client bundle: Vault snapshots, provider packs, source chain and webhook test panels now load on demand from `lib/client.panels.js` via `require.async` and React.lazy.
+- Main client bundle dropped from 255971 B to 245247 B, restoring headroom for UI work while keeping the 256000 B practical gate.
+
+### Verification
+- Full `npm test`: 988/988; pack-size OK (main client 245247 B, panel chunk 11554 B).
+- No behavior change intended; panel tests read both bundles.
+
+## [0.7.34] - 2026-10-28
+
+### Added
+- **#792**: proactive quota guard is wired through config/routing; opt-in self-heal timer probes cooling accounts and clears cooldown on success.
+- **#810**: prompt-cache TTL/affinity is wired through config, `lastUsedAt`, routing scores and trace.
+- **#820**: plugin HTTP calls use a per-address connect floor from config/env without lowering larger values.
+- **#824**: opaque replay state is enveloped by provider/account/model, stripped on mismatch and preserved for legacy histories.
+- **#838**: Settings terminology normalized from vendor to provider.
+
+### Verification
+- Full `npm test`: 988/988; pack-size OK (client 255972 B).
+
+## [0.7.33] - 2026-10-28
+
+### Added
+- **#813**: routing now rejects accounts whose per-account catalog does not contain the requested model (`model_not_in_account_catalog`), while unknown/empty catalogs remain permissive.
+- **#792**: opt-in proactive quota guard with remaining/low and zero states before a request.
+- **#810**: prompt-cache affinity scoring helper with configurable TTL and cache-expired states.
+- **#820**: connect-attempt timeout normalization with a 1.5s floor while preserving larger host values.
+- **#824**: hashed provider/account/model replay envelope helpers; mismatched envelopes are not sent and legacy histories remain compatible.
+
+### Verification
+- Full `npm test`: 986/986; pack-size OK.
+- New tests cover catalog membership, cache TTL, timeout floor, replay match/mismatch/legacy and proactive quota.
+
+## [0.7.32] - 2026-10-28
+
+### Fixed
+- **#827**: corrupt/empty credentials are marked unusable per account instead of breaking status/list reads; errors stay token-free.
+- **#818**: aliases resolve to stable refs, so renaming a label does not change credential identity.
+- **#831**: duplicate provider identities are detected and exposed as `duplicateOf`; unknown identities are never merged.
+- **#806**: refresh lineage guard and versioned writes are covered; stale writes cannot overwrite newer credentials.
+- **#833**: deterministic host-proxy vs plugin-proxy precedence helper with conflict detection.
+
+### Verification
+- Full `npm test`: 981/981; pack-size OK.
+- New tests cover credential state, identity keys, alias resolution, refresh lineage and proxy precedence.
+
+## [0.7.31] - 2026-10-28
+
+### Added
+- **#804**: per-model display-name editor with Reset; names are presentation-only and persist in config.
+- **#819**: Settings draft now has an explicit Cancel, dirty indicator and beforeunload guard; Save failure keeps the draft.
+- **#805**: Accounts cards show remaining quota per account (not only the aggregate).
+- **#828**: model rows expose and display catalog source (`live`/`cached`/`builtin`) as a badge.
+
+### Verification
+- Full `npm test`: 976/976; pack-size OK (client 255963 B).
+- New test covers catalog source attribution.
+
+## [0.7.30] - 2026-10-28
+
+### Added
+- **#829**: per-provider default account marker (★), separate from pool participation.
+- **#830**: global automatic-pool kill switch and a separate media-pool switch. Off uses only the default account with no silent fallback.
+- **#811**: `quota-aware` balancing strategy using remaining quota, reset time and urgency; default account wins within a small urgency tolerance. Trace includes urgency/default info.
+- **#825**: pool-scoped earliest recovery ETA/reason attached to exhausted-pool errors and trace.
+- **#814**: model-scoped cooldowns for Claude/Antigravity quota failures; auth/account-wide failures still block the whole account. Trace distinguishes `model_cooldown`.
+
+### Verification
+- Full `npm test`: 975/975; pack-size OK (client 251221 B).
+- New tests cover default selection, kill switch/no fallback, urgency/default ordering, pool ETA and model-scope cooldown matrix.
+
+## [0.7.29] - 2026-10-28
+
+### Added
+- **#797**: model catalogs are kept per account; the picker merges the account-specific snapshots and preserves which accounts can see each model.
+- **#799**: startup + hourly catalog refresh with a five-minute per-account freshness guard and last-known-good retention; failures never clear the picker.
+- **#828**: an empty or broken live catalog falls back to cached or built-in models instead of dropping the provider.
+- **#821**: explicit `all / selected / none` allowlist modes with mode labels in Accounts.
+- **#839**: search inside the account model allowlist, filtered Select all/none and shown/selected/total counters.
+
+### Verification
+- Full `npm test`: 970/970; pack-size OK (client 248617 B).
+- New tests cover live/cached/builtin resolution, freshness, per-account merge attribution and the three allowlist modes.
+
+## [0.7.28] - 2026-10-28
+
+### Changed
+- Release order is now strict: full quality gate → Gitea Release → GitHub mirror → npm → GitHub Release → automatic WEB deploy. A failed step before Gitea Release prevents it from being created; a failed Gitea Release prevents GitHub/npm/deploy.
+
+### Verification
+- Strict pipeline validated on `v0.7.27`; Gitea Release API tested against the existing tag.
+
+## [0.7.27] - 2026-10-28
+
+### Changed
+- Release is now a single strict pipeline: the tag must be on `main`, the full quality gate and four parallel runs must pass, the GitHub mirror is updated before npm, and WEB deploy runs automatically only after npm + GitHub Release succeed.
+- Manual **Deploy WEB** is now a rollback path and refuses versions without a final GitHub Release.
+
+### Verification
+- Strict workflow validated on PR #850; release and deploy smoke-tested with the 0.7.27 tag.
+
+## [0.7.26] - 2026-10-28
+
+### Added
+- **#795**: account-scoped pool participation. Each slot now has `poolEnabled` (default true) and an optional `poolModels` allowlist. Absent means all current and future models; empty means no model routing; an explicit list allows only those ids. Selection applies the filter before quota tiers, weighting and session pinning, and trace evaluations report `pool_disabled` / `model_not_allowed`.
+- Accounts → Advanced slot settings now exposes the pool toggle and a model list with Automatic / Select all / None.
+
+### Verification
+- Full `npm test`: 966/966; pack-size OK (client 246520 B).
+- Tests cover absent/empty/explicit allowlists, disabled pool, trace reasons, config round-trip, store mapping and stream model propagation.
+
+## [0.7.25] - 2026-10-28
+
+### Added
+- **#839**: the Models catalog now supports case-insensitive search by id, name, alias and provider; sorting by name, provider, context window or availability; total/matched/shown/hidden counters; and incremental "Show more"/"Show all" rendering. Search and sort keep the same selected catalog rows and do not mutate the source list.
+
+### Verification
+- Full `npm test`: 958/958; pack-size OK (client 241375 B).
+- New tests cover filtering, all sort modes, stable/non-mutating ordering and counters over 120 rows.
+
+## [0.7.24] - 2026-10-27
+
+### Fixed
+- **GitHub #26**: DSH Desktop validates `dsh-app://app`, then strips `Origin`, `Referer` and `Sec-Fetch-Site` before forwarding. Mutating requests on loopback that carry the shell's `dsh-auth-*` session cookie are now accepted as shell-forwarded; all other origin, cross-site and host checks remain unchanged.
+
+### Verification
+- Full `npm test`: 955/955; pack-size OK.
+- Regression test covers desktop cookie + loopback, missing/wrong cookie, non-loopback peer, cross-site and mismatched origin.
+
 ## [0.7.23] - 2026-10-27
 
 ### Changed

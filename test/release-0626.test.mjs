@@ -1,9 +1,12 @@
-import { test } from 'node:test'
+import { beforeEach, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { anthropicStream, googleStream, openaiChatStream, toTokenUsage } from '../lib/wire.js'
 import { toGeminiSchema } from '../lib/gemini-schema.js'
 import { usageWindows } from '../lib/usage.js'
 import { streamWithRotation } from '../lib/stream-rotate.js'
+import { resetRoundRobinState } from '../lib/rotate.js'
+
+beforeEach(() => resetRoundRobinState())
 
 function sse(events) {
   return events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('')

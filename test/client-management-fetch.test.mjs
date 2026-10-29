@@ -26,6 +26,8 @@ function mountClient(payloadFor = () => ({ config: { slots: [], codexFastMode: t
     },
     useRef(initial) { return this.useState(() => ({ current: initial }))[0] },
     useEffect(effect) { effects.push(effect) },
+    lazy(load) { return function LazyStub() { return null } },
+    Suspense: 'Suspense',
   }
   runInNewContext(source, {
     window: { __ModuleLoader__: { load(entry) { factory = entry.factory } } },

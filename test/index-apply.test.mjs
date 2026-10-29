@@ -125,7 +125,7 @@ for (const enabled of [false, true]) {
 test('plugin metadata declares the cordis contract', async () => {
   const mod = await loadPlugin()
   assert.equal(mod.name, '@goodandready/dsh-subscriptions')
-  assert.deepEqual(mod.inject, ['llm', 'credentials', 'webServer', 'settings', 'tools'])
+  assert.deepEqual(mod.inject, ['llm', 'credentials', 'webServer', 'settings', 'tools', 'web'])
   assert.equal(typeof mod.apply, 'function')
   assert.equal(typeof mod.Config, 'function')
 })

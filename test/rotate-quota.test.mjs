@@ -1,6 +1,8 @@
-import { test } from "node:test"
+import { beforeEach, test } from "node:test"
 import assert from "node:assert/strict"
-import { pickAccount } from "../lib/rotate.js"
+import { pickAccount, resetRoundRobinState } from "../lib/rotate.js"
+
+beforeEach(() => resetRoundRobinState())
 
 test("skips account with remaining below threshold", () => {
   const now = 1000000

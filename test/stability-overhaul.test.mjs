@@ -1,12 +1,14 @@
-import { test } from 'node:test'
+import { beforeEach, test } from 'node:test'
 import assert from 'node:assert/strict'
-import { isSwitchableError } from '../lib/rotate.js'
+import { isSwitchableError, resetRoundRobinState } from '../lib/rotate.js'
 import { streamWithRotation } from '../lib/stream-rotate.js'
 import { createAccountStore } from '../lib/accounts.js'
 import { iterateSse } from '../lib/sse.js'
 import { fetchWithTimeout } from '../lib/http.js'
 import { googleLicenseMessage, noticeFromLoadCodeAssist } from '../lib/google-validation.js'
 import { throwHttpError } from '../lib/wire.js'
+
+beforeEach(() => resetRoundRobinState())
 
 test('isSwitchableError correctly handles 401, 403, 429, 5xx', () => {
   assert.equal(isSwitchableError({ status: 401 }), true)

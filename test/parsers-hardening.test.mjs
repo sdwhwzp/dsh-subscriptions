@@ -94,6 +94,7 @@ test('every error code in lib belongs to the known inventory', () => {
     'INTERNAL_ERROR', 'EXHAUSTED', 'TIMEOUT', 'ABORTED', 'METHOD', 'FORBIDDEN',
     'JSON', 'PARAMS', 'PASSPHRASE', 'DECRYPT', 'FORMAT', 'TOKEN', 'EMPTY',
     'LOGOUT', 'RESET', 'CHECK', 'PROXY', 'PROXY_FAIL', 'NOT_CONFIGURED', 'PROVIDER',
+    'DSH_HOST_INCOMPATIBLE',
   ])
   const offenders = []
   for (const f of readdirSyncLib()) {
