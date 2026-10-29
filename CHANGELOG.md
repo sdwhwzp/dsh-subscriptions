@@ -1,3 +1,126 @@
+## [0.7.55] - 2026-10-29
+
+### Changed
+- **#890**: completed the module split — `lib/accounts.js` is now 559 lines; account normalization/config moved to `accounts-config.js` and `describeRef` to `accounts-describe.js`. Largest production module is now `messages.js` at 589 lines; every route/facade module is below 600.
+
+### Verification
+- Full `npm test`: 1052/1052; coverage 88.50/74.46/81.27; pack-size OK (client 252284 B).
+
+## [0.7.54] - 2026-10-29
+
+### Changed
+- **#889**: removed production helpers that had no caller (`resolveIndependentEntry`, `createUsageLoader`, `accountDashboard`, `modelEditor`, `normalizeWebSearchResult`, tier/tool-policy helpers); `shouldBypassProxy` and `webSearchRetryDelay` remain because the server uses them.
+- **#890**: split oversized modules: `routes/status.js` → `routes/status.js` + `routes/status-extras.js`; vault transfer routes moved from `routes/accounts.js` to `routes/vault.js`; background loops and Codex web search moved out of `index.js`; accounts helpers moved to `accounts-config.js`.
+- **#891**: added method/origin/parse coverage for packs, metrics, status extras and OAuth routes.
+- **#893**: reduced `lib/client.js` from 255046 B to 252284 B by removing generated comments/blank lines while preserving the #839 test markers; pack check now has ~3.7 KB of warning headroom.
+
+### Verification
+- Full `npm test`: 1052/1052; global coverage 88.53/74.34/81.26; pack-size OK.
+
+## [0.7.53] - 2026-10-29
+
+### Fixed
+- **#878**: snapshot writes now fail loudly and roll back in-memory state when the disk write fails instead of losing the snapshot after restart.
+- **#879**: pre-pull snapshots now include credential blobs; restoring a snapshot writes credentials back alongside slots.
+- **#880**: logout now returns an error when credential deletion fails instead of reporting false success.
+- **#883**: vault export/sync aborts on unreadable or missing configured credentials instead of silently producing an incomplete vault.
+- **#884**: WebDAV/Gist/S3 sync requests and response reads have a configurable `vaultSyncTimeoutMs` (default 30s) and propagate cancellation.
+- **#885**: diagnostic wizard refreshes tokens through `store.ensureFresh`, preserving the standard lock/save path and refreshed tokens.
+- **#881**: lowering `maxQueueSize` or disabling the queue now rejects excess waiters instead of retaining an over-limit backlog.
+- **#882**: `enableQueue`, `queueTimeoutMs`, and `maxQueueSize` are now passed from live config into every rotation request.
+
+### Verification
+- Full `npm test`: 1057/1057; pack-size OK (client 255046 B).
+
+## [0.7.52] - 2026-10-29
+
+### Security
+- **#875/#888**: webhook and vault-sync outbound targets now reject IPv4-mapped IPv6/private hosts, resolve DNS before fetch, and prevent redirects into private networks.
+- **#877**: provider error bodies are sanitized before they reach logs, alerts, webhooks, or diagnostics.
+- **#876/#886/#887**: updated `undici` to 8.12.3 and pinned transitive `ip-address` to 10.7.5; `npm audit --omit=dev` is clean.
+
+### Verification
+- Full `npm test`: 1049/1049; pack-size OK (client 255046 B); `npm audit --omit=dev` clean.
+
+## [0.7.51] - 2026-10-28
+
+### Added
+- **#801**: inline media row for `image_generate`/`video_generate` via `tool.call.toolview`, rendering attachment images and video URLs.
+- **#801**: video generation validates duration/aspect/resolution/image-to-video, polls asynchronously with bounded backoff and reports failures explicitly.
+
+### Verification
+- Full `npm test` green; coverage 87.72/74.29/81.22; client 255046 B; pack-size OK.
+
+## [0.7.50] - 2026-10-28
+
+### Added
+- **#789**: dashboard heatmap is now per account and model, using 24 hourly buckets from request history.
+- **#801**: generated images are also stored through the host attachment service and returned as attachment refs.
+
+### Verification
+- Full `npm test` green; coverage 87.81/74.12/81.18; client 254413 B; pack-size OK.
+
+## [0.7.49] - 2026-10-28
+
+### Added
+- **#802**: composer Speed toggle in `conversation.input.right`, per-session `/speed`, `/fast`, subagent default precedence, and explicit `FAST_UNSUPPORTED` for models without a fast tier.
+- **#789**: dashboard compact mode now hides per-account quota/usage detail.
+
+### Verification
+- Full `npm test` green; coverage 87.53/74.18/81.23; client 254413 B; pack-size OK.
+
+## [0.7.48] - 2026-10-28
+
+### Added
+- **#802**: per-session Speed now resolves explicit child → subagent default → session mode, and subagent speed comes from `codexSubagentSpeed`.
+- **#823**: Claude token refresh writes back to macOS Keychain only when the stored access token still matches the refreshed one.
+- **#801**: `image_generate` accepts 1–5 validated `referenceImages` and forwards them to GPT/Grok image bodies.
+
+### Verification
+- Full `npm test` green; coverage 87.82/74.27/81.21; pack-size OK.
+
+## [0.7.47] - 2026-10-28
+
+### Added
+- **#826**: Antigravity family-specific reasoning budgets (Claude/GPT-OSS/Gemini), effort validation and maxTokens guard; tool schemas expand local `$ref`, reject remote/cyclic refs and widen unions.
+- **#823**: macOS Claude Keychain reader for discovery/import, corrupt-blob validation, CLI-newer merge and guarded write-back helper.
+- **#801**: reference-image validation (1–5, no duplicates/empty) and GPT/Grok edit request builders.
+
+### Verification
+- Full `npm test` green; coverage 87.72/74.33/81.31; pack-size OK.
+
+## [0.7.46] - 2026-10-28
+
+### Added
+- **#807**: model editor can override display name, context window, reasoning effort and visibility, with Save/Cancel and reset.
+- **#789**: dashboard heatmap for the last 24h (analytics hourly buckets) and compact-mode control.
+
+### Verification
+- Full `npm test` green; coverage 87.84/74.23/81.10; client 253937 B; pack-size OK.
+
+## [0.7.45] - 2026-10-28
+
+### Added
+- **#812**: new Dashboard tab with per-account cards, lazy usage loading, in-flight dedupe and stale response drop.
+- **#807**: dashboard includes searchable model list with discovered/shown counters and bounded 40-row rendering.
+- **#802**: subagent Speed selector (Standard/Fast) in the dashboard, persisted to config.
+- **#789**: per-provider dashboard with risk/quota/name sorting, health state and quota/request/error cards.
+
+### Verification
+- Full `npm test` green; coverage 87.77/74.25/81.10; client 253663 B; pack-size OK.
+
+## [0.7.44] - 2026-10-28
+
+### Added
+- **#796**: per-account `independentEntry`/`independentAlias`; independent picker rows bind to the stable ref and never fall back.
+- **#789**: dashboard aggregation with risk sort, quota runway, error count and p95 latency.
+- **#807**: searchable model editor with override counters and bounded row rendering.
+- **#812**: usage loader with per-account in-flight dedupe, stale-drop and removed-account cleanup.
+- **#802**: speed precedence child → subagent → session, with explicit fast-tier errors.
+
+### Verification
+- Full `npm test` green; global coverage 87.71/74.20/81.10; pack-size OK.
+
 ## [0.7.43] - 2026-10-28
 
 ### Tests

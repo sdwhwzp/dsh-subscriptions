@@ -19,12 +19,13 @@ test('quota alerts deduplicate within their window and keep expiration separate'
 
 test('webhook delivery uses the injected transport and tolerates a failed receiver', async () => {
   const alert = { type: 'token_expired', ref: 'FIXTURE' }
+  const options = { lookupImpl: async () => [{ address: '203.0.113.10', family: 4 }], retries: 0 }
   const ok = await dispatchWebhookAlert(alert, 'https://alerts.example.invalid/', async (url, init) => {
     assert.equal(url, 'https://alerts.example.invalid/')
     assert.equal(init.method, 'POST')
     assert.deepEqual(JSON.parse(init.body).alert, alert)
     return { ok: true }
-  })
+  }, options)
   assert.equal(ok, true)
-  assert.equal(await dispatchWebhookAlert(alert, 'https://alerts.example.invalid/', async () => { throw new Error('offline fixture') }), false)
+  assert.equal(await dispatchWebhookAlert(alert, 'https://alerts.example.invalid/', async () => { throw new Error('offline fixture') }, options), false)
 })

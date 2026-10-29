@@ -95,6 +95,8 @@ test('every error code in lib belongs to the known inventory', () => {
     'JSON', 'PARAMS', 'PASSPHRASE', 'DECRYPT', 'FORMAT', 'TOKEN', 'EMPTY',
     'LOGOUT', 'RESET', 'CHECK', 'PROXY', 'PROXY_FAIL', 'NOT_CONFIGURED', 'PROVIDER',
     'DSH_HOST_INCOMPATIBLE',
+    'FAST_UNSUPPORTED', 'INVALID_MEDIA_REFERENCE', 'INVALID_VIDEO_PARAMS',
+    'SNAPSHOT_PERSIST', 'VAULT_SYNC_TIMEOUT', 'VAULT_PARTIAL',
   ])
   const offenders = []
   for (const f of readdirSyncLib()) {

@@ -41,18 +41,26 @@ function fakeCtx() {
   return { ctx, routes }
 }
 
-const MODULES = ['status', 'oauth', 'accounts', 'proxy']
+const MODULES = ['status', 'oauth', 'accounts', 'proxy', 'vault']
+
+function declaredPaths(name) {
+  const source = file => readFileSync(new URL('../lib/routes/' + file + '.js', import.meta.url), 'utf8')
+  let text = source(name)
+  if (name === 'status') text += source('status-extras')
+  if (name === 'accounts') text += source('vault').split('export function registerVaultTransferRoutes')[1]
+  if (name === 'vault') text = text.split('export function registerVaultTransferRoutes')[0]
+  return [...text.matchAll(/path: '(\/dsh-subscriptions[^']*)'/g)].map(match => match[1]).sort()
+}
 
 test('every routes module registers exactly its declared paths', async () => {
   for (const name of MODULES) {
-    const src = readFileSync(new URL('../lib/routes/' + name + '.js', import.meta.url), 'utf8')
-    const declared = (src.match(/path: '/g) || []).length
+    const declared = declaredPaths(name)
     const mod = await import('../lib/routes/' + name + '.js')
     const registrar = mod['register' + name[0].toUpperCase() + name.slice(1) + 'Routes']
     assert.equal(typeof registrar, 'function', name + ' registrar export')
     const { ctx, routes } = fakeCtx()
     registrar(ctx, minimalState())
-    assert.equal(routes.length, declared, name + ' registered ' + routes.length + ' of ' + declared)
+    assert.deepEqual(routes.map(route => route.path).sort(), declared, name + ' includes delegated routes')
     for (const r of routes) assert.ok(r.path && r.handler, name + ' route shape')
   }
 })
@@ -61,8 +69,7 @@ test('combined registration covers all declared paths without duplicates', async
   let declared = 0
   const paths = []
   for (const name of MODULES) {
-    const src = readFileSync(new URL('../lib/routes/' + name + '.js', import.meta.url), 'utf8')
-    declared += (src.match(/path: '/g) || []).length
+    declared += declaredPaths(name).length
     const mod = await import('../lib/routes/' + name + '.js')
     const { ctx, routes } = fakeCtx()
     mod['register' + name[0].toUpperCase() + name.slice(1) + 'Routes'](ctx, minimalState())

@@ -9,7 +9,7 @@ const source = readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8'
 
 // Render the shipped slot components without a DOM; their effects and button
 // handlers use the same fetch implementation as the browser client factory.
-function mountClient(payloadFor = () => ({ config: { slots: [], codexFastMode: true }, revision: 7, accounts: [], providers: [] }), { sectionAvailable = true } = {}) {
+function mountClient(payloadFor = () => ({ config: { slots: [], codexFastMode: true }, revision: 7, accounts: [], providers: [] }), { sectionAvailable = true, panels = false } = {}) {
   const timers = []
   const requests = []
   const slots = new Map()
@@ -29,7 +29,7 @@ function mountClient(payloadFor = () => ({ config: { slots: [], codexFastMode: t
     lazy(load) { return function LazyStub() { return null } },
     Suspense: 'Suspense',
   }
-  runInNewContext(source, {
+  runInNewContext(panels ? readFileSync(new URL('../lib/client.panels.js', import.meta.url), 'utf8') : source, {
     window: { __ModuleLoader__: { load(entry) { factory = entry.factory } } },
     AbortController,
     setInterval: () => 1, clearInterval() {},
@@ -40,7 +40,7 @@ function mountClient(payloadFor = () => ({ config: { slots: [], codexFastMode: t
     },
   })
   const plugin = factory(name => name === 'react' ? React : {})
-  plugin.apply({
+  plugin.apply?.({
     effect: fn => fn(),
     locale: { bind: () => key => key, register: () => () => {} },
     slots: {
@@ -49,7 +49,7 @@ function mountClient(payloadFor = () => ({ config: { slots: [], codexFastMode: t
     },
   })
   return {
-    requests, slots, timers,
+    requests, slots, timers, plugin,
     render(component, props = {}) {
       hooks = states.get(component) || []
       states.set(component, hooks)
@@ -143,4 +143,36 @@ test('native settings owns one page and older hosts register plugin seats after 
   assert.equal(legacy.slots.has('settings.section'), false)
   const page = legacy.render(legacy.slots.get('plugins.row.config'), { view: 'page' }).tree
   assert.ok(find(page, node => node.type.name === 'SubsSection'))
+})
+
+test('lazy dashboard, speed and vault requests retain the gateway policy and payloads', async () => {
+  const client = mountClient(path => {
+    if (path.includes('/vault/snapshots')) return { ok: true, snapshots: [], snapshot: { id: 'fixture' } }
+    return { config: { slots: [], codexSubagentSpeed: 'standard' }, revision: 9, accounts: [], providers: [] }
+  }, { panels: true })
+  const { AccountsDashboardPanel, SpeedToggle, VaultSnapshotsPanel } = client.plugin
+  for (const effect of client.render(AccountsDashboardPanel).effects) effect()
+  for (const effect of client.render(SpeedToggle, { sessionId: 'session-one' }).effects) effect()
+  for (const effect of client.render(VaultSnapshotsPanel).effects) effect()
+  await setImmediate()
+
+  const dashboard = client.render(AccountsDashboardPanel).tree
+  const speed = find(dashboard, node => node.type === 'select' && node.props.value === 'standard')
+  assert.ok(speed)
+  speed.props.onChange({ target: { value: 'fast' } })
+  client.render(SpeedToggle, { sessionId: 'session-one' }).tree.props.onClick()
+  const vault = client.render(VaultSnapshotsPanel).tree
+  const create = find(vault, node => node.type === 'button' && node.children.includes('createSnapshot'))
+  assert.ok(create)
+  create.props.onClick()
+  await setImmediate()
+
+  const written = client.requests.find(row => row.path === '/dsh-subscriptions/config' && row.options.method === 'PUT')
+  assert.equal(JSON.parse(written.options.body).revision, 9)
+  assert.equal(JSON.parse(written.options.body).config.codexSubagentSpeed, 'fast')
+  const toggle = client.requests.find(row => row.path === '/dsh-subscriptions/speed')
+  assert.deepEqual(JSON.parse(toggle.options.body), { sessionId: 'session-one', mode: 'fast' })
+  assert.ok(client.requests.some(row => row.path === '/dsh-subscriptions/analytics'))
+  assert.ok(client.requests.some(row => row.path === '/dsh-subscriptions/vault/snapshots' && row.options.method === 'POST'))
+  for (const { options } of client.requests) assert.equal(options.referrerPolicy, 'no-referrer')
 })
