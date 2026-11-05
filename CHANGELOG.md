@@ -1,3 +1,144 @@
+## [0.7.68] - 2026-11-02
+
+### Fixed
+- **#30 — sync-models dropped the live catalog**: the route flattened every catalog entry to a bare id string, which the picker merge discarded because a string has no `id`/`slug`/`name`. The route now passes objects, `rememberDynamicModels` normalizes strings and preserves display names at the single write point, and `mergeAccountCatalogs` accepts legacy string entries. The HTTP response keeps its previous id list.
+- **#31 — session-header pill modal was clipped**: overlays rendered inside the header inherited its stacking context and `overflow`. Every `.dsub-modalWrap` is now portaled to `document.body` (with a fallback when `react-dom` is unavailable), which covers the pill modal, setup wizard and quota popover.
+
+### Verification
+- `npm test`: 1290 tests, coverage gates and pack-size check green.
+- Live prod: sync-models returns live Grok models and the pill modal renders at viewport size.
+
+## [0.7.67] - 2026-11-02
+
+### Fixed
+- **Env proxy at runtime**: `fetchWithPinnedDispatcher` now builds the `EnvHttpProxyAgent` itself when `NODE_USE_ENV_PROXY` is set, instead of relying on Node's startup-only flag, so webhook and Vault sync really leave through the proxy (and end-to-end tests can toggle it).
+- **Gist base URL**: a trailing slash is stripped before appending `/gists`, avoiding a double slash that servers resolved to 404.
+- **Webhook payload**: the outgoing body is scrubbed again in `dispatchNotification`, so an alert passed directly (not through `recordAlert`) cannot carry a secret.
+
+### Tests
+- Real-HTTP integration suite (`test/outbound-integration.test.mjs`): pinned dispatcher against a live local server, signed webhook delivery, WebDAV push/pull, same-origin redirect, Gist create/update/pull, S3 push/pull with SigV4, and both drivers through a local env proxy.
+- Suite also passes on Node 22.23.4 (1270 tests).
+
+## [0.7.66] - 2026-10-31
+
+Security and correctness batch from the audit (13 issues).
+
+### Fixed
+- **#924 — Vault sync leaked credentials on redirect**: cross-origin redirects are now refused for authorized requests and uploads, https→http downgrades are refused, redirect method semantics follow 301/302/303/307/308, and S3 requests are re-signed for a same-origin target instead of reusing the old SigV4 signature. Webhook delivery also refuses cross-origin redirects.
+- **#925 / #926 — SSRF classification**: hostnames are no longer classified by IPv6 prefix (`fcdn.example` stays public) and IPv6 is parsed into bytes, so `::`, `[::]`, mapped/compatible forms, link-local and unique-local addresses are rejected before and after DNS and on every redirect hop.
+- **#927 — webhook/Vault sync on Node 24**: both now use a fetch that accepts the pinned undici dispatcher; with `NODE_USE_ENV_PROXY` the env proxy is honoured instead of being replaced by a pin.
+- **#877 — secrets in errors and notifications**: redaction covers provider token prefixes, JWTs, header/query/userinfo shapes and emails at the error boundary, alerts, webhook payloads, logs and account cards. Raw upstream bodies stay capped and sanitized.
+- **#883 — incomplete Vault export**: a logged-out slot is skipped, while a configured account whose credential cannot be read blocks the export, so a full remote backup is never replaced with a partial one.
+- **#928 — logout vs token save race**: credential writes are serialized per ref; a save queued during logout is persisted, a logout queued after a save wins, and a failed unset surfaces an error instead of a false success.
+- **#929 — queue throughput**: acquire and drain share one limit (explicit per-account, otherwise the live global value), new requests no longer jump the FIFO line, and raising a limit starts waiting work immediately.
+- **#930 — session pin store**: bounded at 200 entries with LRU eviction after expired entries, with separate expiry/eviction counters.
+- **#932 — zero subscription cost**: an explicit `0` is preserved through config, account view, analytics and export; ROI reports `n/a` instead of dividing by zero.
+- **#933 — CSV formula injection**: formula-leading text cells are prefixed with an apostrophe; numbers and booleans keep their type.
+- **#934 — export fields**: `createAccountsView` now exposes `usageAt` and `monthlyCost`, so `/usage` JSON/CSV carry the age and cost, and diagnostics reports `maxUsageAgeMs` / `staleQuota` instead of treating old quota as fresh.
+- **#935 — dev dependency advisories**: `zod` 4.6.7, `fast-uri` 3.1.9 and `minimatch` 11.0.4 via overrides; `npm audit` reports 0 vulnerabilities and eslint still runs on minimatch 11.
+
+### Docs
+- `docs/OUTBOUND-SECURITY.md`: address classification, redirect contract, dispatcher/proxy behaviour, redaction formats and the CSV safety contract.
+
+### Verification
+- `npm test`: 1262 tests, coverage gates green, pack-size check OK.
+- Live prod smoke: health, Codex `ping`/`check`, `image_generate` render and settings save.
+
+## [0.7.65] - 2026-10-31
+
+### Tests
+- The `/import-local` route test read the developer's real `~/.codex/auth.json`, so a machine with a local Codex login expected 200 where a clean CI runner got 400. The test now points `HOME`/`USERPROFILE` at an empty fixture for its duration and restores them afterwards. No runtime change.
+
+## [0.7.64] - 2026-10-30
+
+### Fixed
+- **GitHub #29 — env proxy bypassed**: with `NODE_USE_ENV_PROXY=1` and `http(s)_proxy` set, `fetchWithTimeout` still left the host directly, because the connect dispatcher used a bare `Agent` (0.7.60) and the switch to undici's own fetch skipped Node's env-proxy handling entirely (0.7.63). On a host whose direct egress is region-blocked, Codex device login rendered the QR code but failed the token exchange with `403 unsupported_country_region_territory`. The dispatcher is now an `EnvHttpProxyAgent` whenever the env contract is active, keyed by mode + connect timeout; otherwise a bare `Agent` as before.
+
+### Verification
+- Regression test runs a local HTTP proxy and asserts the request reaches the proxy, not the target, with `NODE_USE_ENV_PROXY=1`.
+- `npm test`: 1220 tests; coverage gate green in CI.
+
+## [0.7.63] - 2026-10-30
+
+### Fixed
+- **Codex requests failed instantly on Node 24**: `/ping`, `/check` and `image_generate` returned `fetch failed` in 1–2 ms for Codex while grok and antigravity worked. `fetchWithTimeout` handed a dispatcher built by the standalone undici package to Node's global fetch, which rejects it with `UND_ERR_INVALID_ARG` before opening a socket. The native fetch now goes through undici's own fetch (which accepts the dispatcher), while a fetch replaced after module load — tests, the opencode session-header patch — is left untouched.
+
+### Verification
+- Reproduced locally: `fetchWithTimeout(fetch, 'https://auth.openai.com/oauth/token', …)` failed with `UND_ERR_INVALID_ARG` in 9 ms; after the fix the same call answers 401 in ~465 ms.
+- `npm test`: 1218 tests; coverage gate green in CI.
+
+## [0.7.62] - 2026-10-30
+
+### Fixed
+- **settings save on DSH 0.2.1-rc.4**: every write from the Subscriptions settings page returned HTTP 400 `Config field "antigravityClientSecret" is not volatile`, because the adapter passed the whole parsed config to the host settings service and the host rejects an update that carries a profile-owned field. Writes now send only volatile fields; a changed profile-owned field is rejected up front with an explicit "requires a profile edit and plugin reload" instead of a host-level error, and the cached snapshot is merged from the editable subset.
+
+### Verification
+- Live check on the production web instance (host 0.2.1-rc.4, plugin 0.7.61): cold start and Settings → Subscriptions render without console errors or duplicate slot registration; all panes load, including the lazy chunk panels.
+- `npm test`: 1217 tests; coverage gate (80% branches) green.
+
+## [0.7.61] - 2026-10-30
+
+### Fixed
+- **GitHub #28**: the `subscriptions-codex` web-search provider always failed with HTTP 400. The Codex backend rejects a non-streaming `/backend-api/codex/responses` call (`Store must be set to false`, then `Stream must be set to true`). The provider now posts to the standalone `/alpha/search` endpoint with the `command`/`settings` request shape, and `normalizeCodexSearch` maps the returned `{ output, results }` — stripping U+E200…U+E201 citation markers, keeping only https `text_result` sources, deduped and capped at 50, with title and snippet. Legacy `{ output: [...] }` and `output_text` payloads keep the previous mapping.
+
+### Verification
+- `npm test`: 1137 tests; targets the URL, request body and alpha payload mapping; coverage 89.4/77.0/82.6; pack-size OK.
+
+## [0.7.60] - 2026-10-30
+
+### Added
+- **namespaced routes (opt-in)**: `namespacedRoutes` registers `subscriptions-<vendor>` and wraps the adapter, so this plugin and another subscription plugin can serve models side by side instead of one being skipped by the claim guard. Off by default; bare vendor ids stay the default behaviour for existing installs.
+- **scheduled morning warm-up**: `warmupAt: "HH:MM"` (local time) refreshes tokens and probes every configured account once a day, ahead of the first turn. The schedule always targets the next occurrence; empty disables it.
+- **update rollback**: a failed update now reinstalls the version that was in the profile before the attempt. The 503 response carries `rollback: "restored" | "failed"`, so the UI can never claim a rollback that did not happen.
+
+### Verification
+- `npm test`: eslint + typecheck clean; 1100 tests; coverage 89.16/75.67/82.08; pack-size OK.
+
+## [0.7.59] - 2026-10-30
+
+### Fixed
+- **#901**: DSH 0.2.1-rc.5 declares `tool.call.images` from its own read_image toolview and rejects a second declaration, so the two generated-media toolviews logged the duplicate-slot error twice per cold start. Our entries no longer declare that child slot and no longer dispatch it; the row renders durable attachments through its own `loadImage` prop.
+- **#901**: `image_generate` now returns attachment refs as structured tool output (`attachments` -> `{type:'image', attachment}` blocks) instead of an `Attachment: [object Object]` text line, so images reach both the transcript and the model.
+- **#901**: the four `@deepseek-ai/dsh-*` peers accept every 0.2.1 build (`^0.2.1-0`), including alpha.1-alpha.5 and rc.1, not only rc.2 and above.
+
+### Changed
+- **bundle**: the Simplified Chinese dictionary (23 KB) moved to the lazy `lib/client.zh.js` chunk loaded through `require.async`, the same mechanism as `client.panels.js`. `lib/client.js` drops from 253132 B to 235212 B (~20 KB of headroom below the 250 KiB store threshold).
+- **repo**: `.gitattributes` pins LF, so the Windows checkout no longer reports the shell scripts as modified purely from CRLF conversion.
+- **tests**: repo-wide walkers and the pack check use `fileURLToPath` and a Windows-safe npm spawn, so the same assertions run on Windows and Linux.
+- **coverage**: new tests for accounts view, usage export, coexistence, OAuth callbacks, quarantine and Codex web search; branch coverage 74.61 -> 75.80 and the CI threshold 70 -> 75.
+
+### Verification
+- Full `npm test`: 1091/1091; coverage 89.03/75.80/81.92; pack-size OK (largest file 235212 B).
+
+## [0.7.58] - 2026-10-29
+
+### Fixed
+- **#881**: releasing a slot now decrements the active count and drains waiters only while `active < min(global, waiter) maxConcurrency`. Lowering concurrency from 2 to 1 with two in-flight requests no longer starts a third request when the first finishes.
+- **#875/#888**: vault sync no longer uses automatic redirect following. Every WebDAV/Gist/S3 request sets `redirect: 'manual'`, re-validates the target host, resolves and pins the new address per hop, and stops after 5 hops.
+
+### Verification
+- Full `npm test`: 1064/1064; coverage 88.70/74.65/81.36; pack-size OK.
+
+## [0.7.57] - 2026-10-29
+
+### Fixed
+- **#875/#888**: outbound webhook and vault-sync requests now pin the validated DNS address with an undici dispatcher, so a second DNS answer cannot rebind the connection to a private host.
+- **#877**: JSON error bodies such as `{"access_token":"..."}` are now redacted; the previous regex had a bad backreference and skipped quoted values.
+- **#880**: logout now marks the ref as clearing before the unset, and `saveBlob` drops writes while a logout owns the ref, preventing a racing save from recreating the credential. The marker is rolled back if unset fails.
+- **#881**: a lower per-request or global `maxQueueSize` now trims existing waiters immediately instead of letting the old backlog start extra requests.
+- **#882**: `enableQueue:false` now fails fast with `QUEUE_OVERFLOW` when the active limit is reached; it no longer returns a no-op release that bypasses concurrency limiting. Live queue settings are re-applied on configuration changes.
+
+### Verification
+- Full `npm test`: 1061/1061; coverage 88.57/74.49/81.33; pack-size OK.
+
+## [0.7.56] - 2026-10-29
+
+### Changed
+- **#892**: replaced 114 comment-only silent `catch` blocks with the shared `ignoreError(label, err)` collector (100 server + 14 client). The collector keeps a bounded 100-entry ring buffer, forwards to the plugin debug logger, and exposes `ignoredErrors` in the diagnostics report. Deliberate parse/URL fallbacks that must return a value remain explicit. Added `test/catch-audit.test.mjs` so new silent comment-only catches fail CI.
+
+### Verification
+- Full `npm test`: 1055/1055; coverage 88.47/74.27/81.32; pack-size OK (client 252968 B).
+
 ## [0.7.55] - 2026-10-29
 
 ### Changed

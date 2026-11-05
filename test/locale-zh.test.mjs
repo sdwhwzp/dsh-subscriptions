@@ -2,12 +2,13 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
-test('client bundle contains both en and zh locales with matching key structure', () => {
+test('client bundle and lazy Chinese chunk have matching locale keys', () => {
   const src = fs.readFileSync('lib/client.js', 'utf8')
+  const chinese = fs.readFileSync('lib/client.zh.js', 'utf8')
   
   // Extract en and zh definitions
   const enMatch = src.match(/const en = (\{[\s\S]*?\});/)
-  const zhMatch = src.match(/const zh = (\{[\s\S]*?\});/)
+  const zhMatch = chinese.match(/const zh = (\{[\s\S]*?\});/)
   assert.ok(enMatch, 'const en must be defined')
   assert.ok(zhMatch, 'const zh must be defined')
   

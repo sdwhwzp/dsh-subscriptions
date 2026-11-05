@@ -69,9 +69,9 @@ test('logout cannot resurrect a credential while a preceding write is pending', 
   const { store } = fixtureStore(t, credentials)
   const pending = store.saveBlob('CODEX_OAUTH_953', { accessToken: 'fixture-token' })
   await started.promise
-  await store.clearRef('CODEX_OAUTH_953')
+  const cleared = store.clearRef('CODEX_OAUTH_953')
   release.resolve()
-  await pending
+  await Promise.all([pending, cleared])
   assert.equal(saved.size, 0)
 })
 

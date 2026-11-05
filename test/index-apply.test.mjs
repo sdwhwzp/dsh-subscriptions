@@ -93,6 +93,7 @@ for (const enabled of [false, true]) {
     const config = configSnapshot({
       slots: [{ provider: 'claude', index: 1 }, { provider: 'cursor', index: 1 }],
       cascadingFallback: enabled, cascadingChain: { claude: ['cursor'], cursor: ['claude'] },
+      namespacedRoutes: true,
       ollamaFallback: false, probeIntervalMin: 0,
     })
     const registered = Promise.withResolvers()
@@ -193,7 +194,7 @@ for (const claimed of [false, true]) {
   test(`namespaced provider registration preserves other adapters (claimed=${claimed})`, async () => {
     const mod = await loadPlugin()
     const { ctx, state } = fakeCtx()
-    const config = configSnapshot({ slots: [{ provider: 'codex', index: 1, ref: 'subscriptions.codex.1' }] })
+    const config = configSnapshot({ namespacedRoutes: true, slots: [{ provider: 'codex', index: 1, ref: 'subscriptions.codex.1' }] })
     ctx.settings.register = () => ({ get: () => config, watch: () => () => {} })
     ctx.credentials.describe = async () => ({ configured: true })
     ctx.credentials.resolve = async () => null
