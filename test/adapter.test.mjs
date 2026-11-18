@@ -8,6 +8,7 @@ test('retries the next account after 429', async () => {
     { ref: 'CODEX_OAUTH_2', hasToken: true, usagePercent: 10, cooldownUntil: 0 },
   ]
   const seen = []
+  const cooldownReasons = []
   async function* streamOnce(account) {
     seen.push(account.ref)
     if (account.ref === 'CODEX_OAUTH_1') {
@@ -25,10 +26,26 @@ test('retries the next account after 429', async () => {
     cooldownMs: 1000,
     streamOnce,
     options: { provider: 'codex', model: 'x', messages: [] },
-    onCooldown: () => {},
+    onCooldown: (account) => cooldownReasons.push([account.ref, account.cooldownReason]),
   })) chunks.push(chunk)
   assert.deepEqual(seen, ['CODEX_OAUTH_1', 'CODEX_OAUTH_2'])
+  assert.deepEqual(cooldownReasons, [['CODEX_OAUTH_1', 'RATE_LIMIT']])
   assert.equal(chunks[0].text, 'ok')
+})
+
+test('adapter manager forwards the cooldown reason to account storage', async () => {
+  const { createAdapterManager } = await import('../lib/adapter-manager.js')
+  const recorded = []
+  const manager = createAdapterManager({
+    store: { rememberCooldown: (...args) => recorded.push(args) },
+  })
+  try {
+    const cooldown = ['CODEX_OAUTH_1', 1000, ['reasoning'], null, 'RATE_LIMIT']
+    manager.adapter.deps.rememberCooldown(...cooldown)
+    assert.deepEqual(recorded, [cooldown])
+  } finally {
+    manager.dispose()
+  }
 })
 
 test('SubscriptionAdapter.prepareCall returns model and stream callable', async () => {

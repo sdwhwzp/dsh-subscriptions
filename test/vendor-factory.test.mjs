@@ -36,6 +36,56 @@ test("validateProfile rejects bad id format", () => {
   assert.throws(() => validateProfile({ ...PROFILE, id: "has space" }))
 })
 
+test("OAuth profiles require HTTPS token endpoints outside loopback", () => {
+  assert.throws(() => validateProfile({ ...PROFILE, tokenUrl: "http://auth.example.invalid/token" }), /tokenUrl/)
+  assert.equal(validateProfile({ ...PROFILE, tokenUrl: "http://127.0.0.1:9876/token" }).tokenUrl, "http://127.0.0.1:9876/token")
+})
+
+const CHAT_PROFILE = {
+  protocol: "chat",
+  id: "staticvendor",
+  baseUrl: "https://api.example.invalid/v1",
+  models: ["fixture-model", { id: "second-model", name: "Second model", maxTokens: 4096 }],
+}
+
+test("static chat profiles validate endpoints and allow only request credential fields", () => {
+  assert.throws(() => validateProfile({ ...CHAT_PROFILE, baseUrl: "http://api.example.invalid/v1" }), /baseUrl/)
+  assert.throws(() => validateProfile({ ...CHAT_PROFILE, baseUrl: "https://user@api.example.invalid/v1" }), /baseUrl/)
+  assert.throws(() => validateProfile({ ...CHAT_PROFILE, authorizeUrl: "data:text/plain,fixture" }), /authorizeUrl/)
+  assert.throws(() => validateProfile({ ...CHAT_PROFILE, authorizeUrl: "http://auth.example.invalid/keys" }), /authorizeUrl/)
+  for (const field of ["refreshToken", "idToken", "clientSecret", "constructor"]) {
+    assert.throws(() => validateProfile({ ...CHAT_PROFILE, authFields: [field] }), /authFields/)
+  }
+  const profile = validateProfile({ ...CHAT_PROFILE, baseUrl: "http://[::1]:9876/v1", authFields: ["token"] })
+  assert.equal(profile.baseUrl, "http://[::1]:9876/v1")
+  assert.deepEqual(profile.authFields, ["token"])
+})
+
+test("static chat profiles stream with the first catalog model and a manual token", async () => {
+  const vendor = createVendorFromProfile(validateProfile(CHAT_PROFILE))
+  assert.deepEqual(vendor.defaults().models, ["fixture-model", "second-model"])
+  assert.deepEqual(await vendor.listModels(), [
+    { id: "fixture-model", name: "fixture-model" },
+    CHAT_PROFILE.models[1],
+  ])
+  assert.throws(() => vendor.authorizeUrl(), { code: "AUTH" })
+  const sent = []
+  const controller = new AbortController()
+  const fetchImpl = async (url, init) => {
+    sent.push({ url, auth: init.headers.Authorization, body: JSON.parse(init.body), signal: init.signal })
+    return new Response("data: [DONE]\n\n")
+  }
+  const options = { messages: [] }
+  await Array.fromAsync(vendor.streamOnce({ blob: { apiKey: "manual-fixture" }, options, signal: controller.signal, fetchImpl }))
+  assert.equal(sent.length, 1)
+  assert.equal(sent[0].url, "https://api.example.invalid/v1/chat/completions")
+  assert.equal(sent[0].auth, "Bearer manual-fixture")
+  assert.equal(sent[0].body.model, "fixture-model")
+  assert.equal(sent[0].signal, controller.signal)
+  await assert.rejects(Array.fromAsync(vendor.streamOnce({ blob: { refreshToken: "unused-fixture" }, options, fetchImpl })), { code: "AUTH" })
+  assert.equal(sent.length, 1)
+})
+
 test("factory builds vendor with correct identity", () => {
   const v = createVendorFromProfile(validateProfile(PROFILE))
   assert.equal(v.id, "myservice")

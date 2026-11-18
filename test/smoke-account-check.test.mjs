@@ -59,11 +59,12 @@ test('POST /dsh-subscriptions/check returns latencyMs and account health', async
   }
 
   registerStatusRoutes(ctx, state)
-  const checkRoute = ctx.routes.find((r) => r.path === '/dsh-subscriptions/check')
-  assert.ok(checkRoute, '/check route must be registered')
+  const checkRoute = ctx.routes.find((r) => r.path === '/dsh-subscriptions/probe')
+  assert.ok(checkRoute, '/probe route must be registered')
 
   const req = new EventEmitter()
   req.method = 'POST'
+  req.url = '/dsh-subscriptions/probe?mode=check'
   req.headers = { host: '127.0.0.1:3080', origin: 'http://127.0.0.1:3080', 'content-type': 'application/json' }
 
   const res = makeMockRes()

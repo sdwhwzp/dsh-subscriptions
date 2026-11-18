@@ -27,20 +27,47 @@ function mountClient(payloadFor = () => ({ config: { slots: [], codexFastMode: t
     useRef(initial) { return this.useState(() => ({ current: initial }))[0] },
     useMemo(create) { return create() },
     useEffect(effect) { effects.push(effect) },
-    lazy(load) { return function LazyStub() { return null } },
+    lazy(load) {
+      function LazyChunk() { return null }
+      LazyChunk.load = load
+      return LazyChunk
+    },
     Suspense: 'Suspense',
   }
-  runInNewContext(panels ? readFileSync(new URL('../lib/client.panels.js', import.meta.url), 'utf8') : source, {
+  const fetchImpl = async (path, options) => {
+    requests.push({ path, options })
+    return { ok: true, json: async () => payloadFor(path, options) }
+  }
+  const timerFns = {
+    setInterval: () => 1,
+    clearInterval() {},
+    setTimeout: (callback, delay) => { timers.push({ callback, delay }); return timers.length },
+    clearTimeout() {},
+  }
+  function require(name) {
+    if (name === 'react') return React
+    if (name === 'react-dom') return {}
+    throw new Error('unexpected module ' + name)
+  }
+  require.async = (spec) => {
+    const file = String(spec).replace(/^\.\//, '')
+    const code = readFileSync(new URL('../lib/' + file, import.meta.url), 'utf8')
+    let entry
+    const chunkWindow = new globalThis.EventTarget()
+    chunkWindow.__ModuleLoader__ = { load(next) { entry = next } }
+    runInNewContext(code, Object.assign({
+      window: chunkWindow,
+      AbortController,
+      fetch: fetchImpl,
+    }, timerFns))
+    return Promise.resolve(entry.factory(require))
+  }
+  runInNewContext(panels ? readFileSync(new URL('../lib/client.panels.js', import.meta.url), 'utf8') : source, Object.assign({
     window: Object.assign(new globalThis.EventTarget(), { __ModuleLoader__: { load(entry) { factory = entry.factory } } }),
     AbortController,
-    setInterval: () => 1, clearInterval() {},
-    setTimeout: (callback, delay) => { timers.push({ callback, delay }); return timers.length }, clearTimeout() {},
-    fetch: async (path, options) => {
-      requests.push({ path, options })
-      return { ok: true, json: async () => payloadFor(path, options) }
-    },
-  })
-  const plugin = factory(name => name === 'react' ? React : {})
+    fetch: fetchImpl,
+  }, timerFns))
+  const plugin = factory(require)
   plugin.apply?.({
     get: () => undefined,
     effect: fn => fn(),
@@ -63,6 +90,18 @@ function mountClient(payloadFor = () => ({ config: { slots: [], codexFastMode: t
   }
 }
 
+
+async function renderLazySlot(client, slotName) {
+  const wrapper = client.render(client.slots.get(slotName)).tree
+  const lazyWidget = find(wrapper, node => node.type && node.type.name === 'LazyWidget')
+  assert.ok(lazyWidget, 'session widgets load through the widget chunk')
+  const suspended = client.render(lazyWidget.type, lazyWidget.props).tree
+  const chunk = find(suspended, node => node.type && typeof node.type.load === 'function')
+  assert.ok(chunk, 'widget chunk exposes its loader')
+  const loaded = await chunk.type.load()
+  return client.render(loaded.default, chunk.props || {})
+}
+
 function find(tree, predicate) {
   if (!tree || typeof tree !== 'object') return undefined
   if (predicate(tree)) return tree
@@ -74,9 +113,7 @@ function find(tree, predicate) {
 
 test('account status and settings reads omit Referer across a Host-rewriting gateway', async () => {
   const client = mountClient()
-  const wrapper = client.render(client.slots.get('conversation.session.header.actions')).tree
-  const pill = find(wrapper, node => node.type.name === 'SubsPill')
-  const mounted = client.render(pill.type, pill.props)
+  const mounted = await renderLazySlot(client, 'conversation.session.header.actions')
   for (const effect of mounted.effects) effect()
   await setImmediate()
   assert.deepEqual(client.requests.map(row => row.path), ['/dsh-subscriptions/status', '/dsh-subscriptions/alerts?limit=5', '/dsh-subscriptions/config'])

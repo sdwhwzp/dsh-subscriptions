@@ -12,10 +12,12 @@ const accounts = [
   { ref: 'SECONDARY', hasToken: true },
 ]
 
-for (const cancelled of [false, true]) {
-  test(`a partial tool call cannot rotate after ${cancelled ? 'caller cancellation' : 'provider failure'}`, async () => {
+for (const outcome of ['provider failure', 'transport failure', 'caller cancellation']) {
+  test(`a partial tool call cannot rotate after ${outcome}`, async () => {
+    const cancelled = outcome === 'caller cancellation'
+    const isNetwork = outcome === 'transport failure'
     const controller = new AbortController()
-    const failure = Object.assign(new Error('Authorization: Bearer fixture-token'), { status: 429 })
+    const failure = Object.assign(new Error('Authorization: Bearer fixture-token'), isNetwork ? { code: 'ECONNRESET' } : { status: 429 })
     const started = []
     const cooled = []
     const traces = []
@@ -44,7 +46,8 @@ for (const cancelled of [false, true]) {
     assert.deepEqual(started, ['PRIMARY'])
     assert.equal(traces.at(-1)?.finalOutcome, cancelled ? 'aborted' : 'stream_error')
     if (!cancelled) assert.equal(traces[0].attempts[0].error, 'Authorization: [redacted]')
-    assert.deepEqual(cooled.map(account => account.ref), cancelled ? [] : ['PRIMARY'])
+    if (isNetwork) assert.equal(traces[0].attempts[0].transportCode, 'ECONNRESET')
+    assert.deepEqual(cooled.map(account => account.ref), cancelled || isNetwork ? [] : ['PRIMARY'])
   })
 }
 
@@ -88,4 +91,25 @@ test('cancelling a queued stream leaves no account lease', async (t) => {
   }
   assert.deepEqual(leaseStore.list(), [])
   assert.equal(queue.stats().totalActive, 0)
+})
+
+test('a declared network failure uses bounded retries without cooling an account', async () => {
+  const started = []
+  const cooled = []
+  const error = Object.assign(new Error('fixture transport failure'), { code: 'NETWORK' })
+  const stream = streamWithRotation({
+    accounts,
+    nowMs: () => 1000,
+    cooldownMs: 5000,
+    options: { defaultRef: 'PRIMARY', rotationStrategy: 'quota-aware', _leaseStore: null },
+    concurrencyQueue: new ConcurrencyQueue(),
+    onCooldown: (account) => cooled.push(account),
+    async *streamOnce(account) {
+      started.push(account.ref)
+      throw error
+    },
+  })
+  await assert.rejects(Array.fromAsync(stream), { code: 'NETWORK', transport: true, cause: error })
+  assert.deepEqual(started, ['PRIMARY', 'PRIMARY', 'PRIMARY'])
+  assert.deepEqual(cooled, [])
 })

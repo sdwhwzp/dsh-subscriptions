@@ -84,8 +84,8 @@ test('smoke route returns 400 if no connected account', async () => {
       pmE: (x) => x,
     })
 
-    const smokeRoute = routes.find((r) => r.path === '/dsh-subscriptions/smoke')
-    assert.ok(smokeRoute, 'smoke route registered')
+    const smokeRoute = routes.find((r) => r.path === '/dsh-subscriptions/probe')
+    assert.ok(smokeRoute, 'probe route registered')
 
     let statusCode = 0
     let payload = null
@@ -97,6 +97,7 @@ test('smoke route returns 400 if no connected account', async () => {
 
     const req = {
       method: 'POST',
+      url: '/dsh-subscriptions/probe?mode=smoke',
       headers: { host: 'localhost:3081', origin: 'http://localhost:3081', 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
       socket: { remoteAddress: '127.0.0.1' },
       on(event, handler) {

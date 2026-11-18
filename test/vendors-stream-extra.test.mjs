@@ -12,15 +12,16 @@ function sse(lines) {
 function chr() { return String.fromCharCode(10) }
 
 const CASES = [
-  { id: 'cody', scheme: 'token ', tokenField: 'accessToken', altField: 'token', url: 'https://sourcegraph.com/.api/chat/completions', authError: /Cody not authenticated/ },
-  { id: 'replit', scheme: 'Bearer ', tokenField: 'accessToken', altField: 'token', url: 'https://replit.com/api/v1/ai/chat/completions', authError: /Replit Core not authenticated/ },
+  { id: 'cody', scheme: 'token ', tokenField: 'accessToken', altField: 'token', url: 'https://sourcegraph.com/.api/chat/completions', authError: /Cody not authenticated/, requestOptions: false },
+  { id: 'replit', scheme: 'Bearer ', tokenField: 'accessToken', altField: 'token', url: 'https://replit.com/api/v1/ai/chat/completions', authError: /Replit Core not authenticated/, requestOptions: false },
   { id: 'perplexity', scheme: 'Bearer ', tokenField: 'accessToken', altField: 'apiKey', url: 'https://api.perplexity.ai/chat/completions', authError: /Perplexity API key or session token required/ },
   { id: 'jetbrains', scheme: 'Bearer ', tokenField: 'accessToken', altField: 'token', url: 'https://api.jetbrains.ai/v1/chat/completions', authError: /JetBrains AI Assistant not authenticated/ },
-  { id: 'spark', scheme: 'Bearer ', tokenField: 'accessToken', altField: 'apiKey', url: 'https://spark-api-open.xf-yun.com/v1/chat/completions', authError: /iFlytek Spark requires API key/ },
+  { id: 'qwen', scheme: 'Bearer ', tokenField: 'accessToken', altField: 'apiKey', url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', authError: /Qwen API Key or Token is required/, requestOptions: true },
+  { id: 'spark', scheme: 'Bearer ', tokenField: 'accessToken', altField: 'apiKey', url: 'https://spark-api-open.xf-yun.com/v1/chat/completions', authError: /iFlytek Spark requires API key/, requestOptions: false },
 ]
 
 for (const c of CASES) {
-  test(c.id + ': streamOnce posts an OpenAI-compatible body with Bearer auth', async () => {
+  test(c.id + ': streamOnce preserves the provider request shape and auth scheme', async () => {
     const calls = []
     const fetchImpl = async (url, init) => {
       calls.push({ url: String(url), headers: init.headers, body: JSON.parse(init.body) })
@@ -28,11 +29,17 @@ for (const c of CASES) {
         status: 200, headers: { 'Content-Type': 'text/event-stream' },
       })
     }
-    const blob = { [c.tokenField]: 'tok-test' }
+    const blob = { [c.tokenField]: 'tok-test', [c.altField]: 'alt-key' }
     const chunks = []
     for await (const chunk of getVendor(c.id).streamOnce({
       blob,
-      options: { model: 'model-x', messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }] },
+      options: {
+        model: c.id === 'cody' ? 'cody-claude-3.5-sonnet' : 'model-x',
+        messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }],
+        tools: [{ name: 'fixture_tool', description: 'Fixture tool' }],
+        maxTokens: 300,
+        temperature: 0.5,
+      },
       fetchImpl,
       headers: {},
       config: {},
@@ -41,9 +48,15 @@ for (const c of CASES) {
     assert.equal(calls.length, 1)
     assert.equal(calls[0].url, c.url)
     assert.equal(calls[0].headers.Authorization, c.scheme + 'tok-test')
-    assert.equal(calls[0].body.model, 'model-x')
+    assert.equal(calls[0].body.model, c.id === 'cody' ? 'claude-3-5-sonnet' : 'model-x')
     assert.equal(calls[0].body.stream, true)
     assert.ok(Array.isArray(calls[0].body.messages) && calls[0].body.messages.length > 0)
+    if (c.requestOptions !== undefined) {
+      assert.equal(getVendor(c.id).id, c.id)
+      assert.equal(calls[0].body.tools?.[0]?.function?.name, c.requestOptions ? 'fixture_tool' : undefined)
+      assert.equal(calls[0].body.max_tokens, c.requestOptions ? 300 : undefined)
+      assert.equal(calls[0].body.temperature, c.requestOptions ? 0.5 : undefined)
+    }
     assert.ok(chunks.some((x) => x.type === 'text-delta' && x.text === 'hi'))
   })
 

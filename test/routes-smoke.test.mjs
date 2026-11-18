@@ -211,11 +211,11 @@ for (const headers of [
     const state = minimalState()
     state.accountsView = async () => { assert.fail('Rejected request must not inspect accounts') }
     registerStatusRoutes(ctx, state)
-    const smoke = routes.find(route => route.path === '/dsh-subscriptions/smoke')
+    const smoke = routes.find(route => route.path === '/dsh-subscriptions/probe')
     let code = 0
     let payload
     const res = { writeHead(value) { code = value }, setHeader() {}, end(value) { payload = JSON.parse(value) } }
-    await smoke.handler({ method: 'POST', headers, on() { assert.fail('Rejected request must not read the body') } }, res)
+    await smoke.handler({ method: 'POST', url: '/dsh-subscriptions/probe?mode=smoke', headers, on() { assert.fail('Rejected request must not read the body') } }, res)
     assert.equal(code, 403)
     assert.equal(payload.error.code, 'forbidden')
   })

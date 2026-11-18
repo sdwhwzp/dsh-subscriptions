@@ -28,8 +28,12 @@ test('English and Chinese locale chunks have matching keys', () => {
 })
 
 test('INSTRUCTIONS has stepsEn and stepsZh for all configured providers', () => {
-  const src = fs.readFileSync('lib/client.js', 'utf8')
+  const src = fs.readFileSync('lib/instructions.js', 'utf8')
+  const clientFiles = ['lib/client.js', 'lib/client.accounts.js', 'lib/client.widgets.js', 'lib/client.modals.js', 'lib/client.panels.js']
   assert.ok(!src.includes('stepsRu:'), 'INSTRUCTIONS should not contain legacy stepsRu')
+  for (const file of clientFiles) {
+    assert.ok(!fs.readFileSync(file, 'utf8').includes('stepsRu:'), file + ' should not contain legacy stepsRu')
+  }
   assert.ok(src.includes('stepsEn:'), 'INSTRUCTIONS must contain stepsEn')
   assert.ok(src.includes('stepsZh:'), 'INSTRUCTIONS must contain stepsZh')
 })
