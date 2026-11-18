@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -13,6 +13,18 @@ import {
   getUpdaterStatus,
   registerPluginUpdater,
 } from '../lib/updater.js'
+
+const packageName = '@goodandready/dsh-subscriptions'
+const forkVersion = '0.6.12-dsh.20260918.1'
+const registry = 'https://updates.example.invalid'
+
+async function manifestFixture(t, version) {
+  const dir = await mkdtemp(join(tmpdir(), 'dsh-subscriptions-updater-'))
+  t.after(() => rm(dir, { recursive: true, force: true }))
+  const manifestUrl = join(dir, 'package.json')
+  await writeFile(manifestUrl, JSON.stringify({ name: packageName, version }))
+  return { dir, manifestUrl }
+}
 
 test('updater: parseSemver parses valid and invalid semver', () => {
   assert.deepEqual(parseSemver('0.6.8'), { core: [0, 6, 8], prerelease: [] })
@@ -83,34 +95,32 @@ test('updater: readCurrentVersion reads package.json version', async () => {
   assert.match(version, /^\d+\.\d+\.\d+/)
 })
 
-test('updater: getUpdaterStatus returns status structure', async () => {
-  const status = await getUpdaterStatus({
-    packageName: '@goodandready/dsh-subscriptions',
-    manifestUrl: new URL('../package.json', import.meta.url),
-    registry: 'https://registry.npmjs.org',
-  }, {
-    profileName: 'web',
-    profileDir: '/tmp',
-  })
+test('updater: getUpdaterStatus returns status structure', async t => {
+  const { dir, manifestUrl } = await manifestFixture(t, '0.6.12')
+  t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify({ version: '0.6.13' })))
+  const status = await getUpdaterStatus({ packageName, manifestUrl, registry }, { profileName: 'web', profileDir: dir })
   assert.equal(status.ok, true)
   assert.equal(status.packageName, '@goodandready/dsh-subscriptions')
-  assert.ok(typeof status.currentVersion === 'string')
+  assert.equal(status.currentVersion, '0.6.12')
+  assert.equal(status.latestVersion, '0.6.13')
+  assert.equal(status.updateAvailable, true)
   assert.equal(status.profileName, 'web')
   assert.equal(status.canAutoUpdate, false) // no cliEntry in mock target
 })
 
-test('updater: fork builds never advertise or run a registry update', async () => {
-  assert.equal(isForkBuild('0.6.12-dsh.20260918.1'), true)
+test('updater: fork builds never advertise or run a registry update', async t => {
+  assert.equal(isForkBuild(forkVersion), true)
   assert.equal(isForkBuild('0.6.12'), false)
   assert.equal(isForkBuild('0.6.12-beta.1'), false)
-  const dir = await mkdtemp(join(tmpdir(), 'dsh-subscriptions-updater-'))
-  const manifest = join(dir, 'package.json')
-  await writeFile(manifest, JSON.stringify({ name: '@goodandready/dsh-subscriptions', version: '0.6.12-dsh.20260918.1' }))
-  const status = await getUpdaterStatus({
-    packageName: '@goodandready/dsh-subscriptions',
-    manifestUrl: manifest,
-    registry: 'http://127.0.0.1:9',
-  }, {
+  const { dir, manifestUrl } = await manifestFixture(t, forkVersion)
+  const originalProfileDir = process.env.DSH_PROFILE_DIR
+  t.after(() => {
+    if (originalProfileDir === undefined) delete process.env.DSH_PROFILE_DIR
+    else process.env.DSH_PROFILE_DIR = originalProfileDir
+  })
+  process.env.DSH_PROFILE_DIR = dir
+  const registryFetch = t.mock.method(globalThis, 'fetch', async () => { throw new Error('unexpected registry request') })
+  const status = await getUpdaterStatus({ packageName, manifestUrl, registry }, {
     profileName: 'web',
     profileDir: dir,
     cliEntry: join(dir, 'bin.js'),
@@ -124,9 +134,9 @@ test('updater: fork builds never advertise or run a registry update', async () =
   let registeredRoute
   registerPluginUpdater({ webServer: { register(spec) { registeredRoute = spec; return () => {} } }, logger: { warn() {} } }, {
     endpoint: '/dsh-subscriptions/update',
-    packageName: '@goodandready/dsh-subscriptions',
-    manifestUrl: manifest,
-    registry: 'http://127.0.0.1:9',
+    packageName,
+    manifestUrl,
+    registry,
   })
   let statusCode = 0
   let body = ''
@@ -140,9 +150,12 @@ test('updater: fork builds never advertise or run a registry update', async () =
   assert.equal(payload.ok, true)
   assert.equal(payload.forkBuild, true)
   assert.equal(payload.updatedVersion, undefined)
+  assert.equal(registryFetch.mock.callCount(), 0)
 })
 
-test('updater: registerPluginUpdater route handles GET, 405 on unsupported methods, and 403 on untrusted POST', async () => {
+test('updater: route checks trust before returning status or rejecting unsupported methods', async t => {
+  const { manifestUrl } = await manifestFixture(t, forkVersion)
+  t.mock.method(globalThis, 'fetch', async () => { throw new Error('unexpected registry request') })
   let registeredRoute = null
   const mockCtx = {
     webServer: {
@@ -156,8 +169,9 @@ test('updater: registerPluginUpdater route handles GET, 405 on unsupported metho
 
   registerPluginUpdater(mockCtx, {
     endpoint: '/dsh-subscriptions/update',
-    packageName: '@goodandready/dsh-subscriptions',
-    manifestUrl: new URL('../package.json', import.meta.url),
+    packageName,
+    manifestUrl,
+    registry,
   })
 
   assert.ok(registeredRoute)
@@ -193,20 +207,22 @@ test('updater: registerPluginUpdater route handles GET, 405 on unsupported metho
   const putRes = createMockRes()
   await registeredRoute.handler({
     method: 'PUT',
-    headers: {},
+    headers: { host: '127.0.0.1', origin: 'http://127.0.0.1' },
     socket: { remoteAddress: '127.0.0.1' },
   }, putRes)
   assert.equal(putRes.statusCode, 405)
+  assert.equal(putRes.headers.allow, 'GET, HEAD, POST')
 
-  // Untrusted POST returns 403
-  const postUntrustedRes = createMockRes()
-  await registeredRoute.handler({
-    method: 'POST',
-    headers: { host: '127.0.0.1' },
-    socket: { remoteAddress: '192.168.1.200' },
-  }, postUntrustedRes)
-  assert.equal(postUntrustedRes.statusCode, 403)
-  const untrustedPayload = JSON.parse(postUntrustedRes.body)
-  assert.equal(untrustedPayload.ok, false)
-  assert.equal(untrustedPayload.error.code, 'forbidden')
+  for (const method of ['GET', 'HEAD', 'POST']) {
+    const untrusted = createMockRes()
+    await registeredRoute.handler({
+      method,
+      headers: { host: '127.0.0.1', 'sec-fetch-site': 'same-origin' },
+      socket: { remoteAddress: '192.0.2.10' },
+    }, untrusted)
+    assert.equal(untrusted.statusCode, 403, method)
+    const untrustedPayload = JSON.parse(untrusted.body)
+    assert.equal(untrustedPayload.ok, false)
+    assert.equal(untrustedPayload.error.code, 'forbidden')
+  }
 })

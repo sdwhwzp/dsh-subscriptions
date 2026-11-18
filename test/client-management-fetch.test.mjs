@@ -25,12 +25,13 @@ function mountClient(payloadFor = () => ({ config: { slots: [], codexFastMode: t
       return [current[index], next => { current[index] = typeof next === 'function' ? next(current[index]) : next }]
     },
     useRef(initial) { return this.useState(() => ({ current: initial }))[0] },
+    useMemo(create) { return create() },
     useEffect(effect) { effects.push(effect) },
     lazy(load) { return function LazyStub() { return null } },
     Suspense: 'Suspense',
   }
   runInNewContext(panels ? readFileSync(new URL('../lib/client.panels.js', import.meta.url), 'utf8') : source, {
-    window: { __ModuleLoader__: { load(entry) { factory = entry.factory } } },
+    window: Object.assign(new globalThis.EventTarget(), { __ModuleLoader__: { load(entry) { factory = entry.factory } } }),
     AbortController,
     setInterval: () => 1, clearInterval() {},
     setTimeout: (callback, delay) => { timers.push({ callback, delay }); return timers.length }, clearTimeout() {},
@@ -41,6 +42,7 @@ function mountClient(payloadFor = () => ({ config: { slots: [], codexFastMode: t
   })
   const plugin = factory(name => name === 'react' ? React : {})
   plugin.apply?.({
+    get: () => undefined,
     effect: fn => fn(),
     locale: { bind: () => key => key, register: () => () => {} },
     slots: {
@@ -148,6 +150,7 @@ test('native settings owns one page and older hosts register plugin seats after 
 test('lazy dashboard, speed and vault requests retain the gateway policy and payloads', async () => {
   const client = mountClient(path => {
     if (path.includes('/vault/snapshots')) return { ok: true, snapshots: [], snapshot: { id: 'fixture' } }
+    if (path.startsWith('/dsh-subscriptions/speed?')) return { ok: true, mode: 'standard', showSpeedToggle: true }
     return { config: { slots: [], codexSubagentSpeed: 'standard' }, revision: 9, accounts: [], providers: [] }
   }, { panels: true })
   const { AccountsDashboardPanel, SpeedToggle, VaultSnapshotsPanel } = client.plugin
@@ -175,4 +178,28 @@ test('lazy dashboard, speed and vault requests retain the gateway policy and pay
   assert.ok(client.requests.some(row => row.path === '/dsh-subscriptions/analytics'))
   assert.ok(client.requests.some(row => row.path === '/dsh-subscriptions/vault/snapshots' && row.options.method === 'POST'))
   for (const { options } of client.requests) assert.equal(options.referrerPolicy, 'no-referrer')
+})
+
+test('Subscriptions Center loads account, savings, trace and activity data through the gateway policy', async () => {
+  const client = mountClient(path => path.endsWith('/accounts')
+    ? { accounts: [{ provider: 'codex', index: 2, label: 'Work', configured: true, usagePercent: 37 }] }
+    : {}, { panels: true })
+  const { SubscriptionsPanel } = client.plugin
+  for (const effect of client.render(SubscriptionsPanel).effects) effect()
+  await setImmediate()
+
+  assert.deepEqual(client.requests.map(({ path }) => path), [
+    '/dsh-subscriptions/accounts',
+    '/dsh-subscriptions/analytics/savings',
+    '/dsh-subscriptions/routing/trace?limit=30',
+    '/dsh-subscriptions/analytics',
+  ])
+  for (const { path, options } of client.requests) {
+    assert.equal(options.referrerPolicy, 'no-referrer', path)
+    assert.equal(options.cache, 'no-store', path)
+    assert.equal(options.credentials, undefined, path)
+  }
+  const { tree } = client.render(SubscriptionsPanel)
+  assert.ok(find(tree, node => node.children.includes('CODEX #2 · Work')))
+  assert.ok(find(tree, node => node.children.includes('63%')))
 })

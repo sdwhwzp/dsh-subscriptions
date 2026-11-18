@@ -1,3 +1,481 @@
+## [Unreleased]
+
+Work in progress for the next release. Entries move to a versioned section
+when the release is cut; keep them grouped by effect, not by commit.
+
+---
+
+## [0.9.0] - 2026-11-17
+
+The audit batch: measure the browser half, bring the managed settings into the
+card, and make the documentation a product of the code.
+
+### Added
+- Browser-half test harness on jsdom: the real `client.js` is imported through
+  its loader contract and mounted, so hook-order and portal defects fail the
+  suite instead of reaching users (#1086).
+- `lib/client.policy.js`: 44 managed settings that previously required a
+  `settings.yaml` edit now have controls in the plugin card (#1087).
+- `scripts/route-doc.mjs`: the README route catalog is generated from the code
+  and checked in CI, so documentation cannot drift again (#1089).
+- `scripts/version-guard.mjs`: rejects a version the registry would normalise,
+  the shape that turned `0.6.90` into an unusable `0.6.9` (#1091).
+
+### Changed
+- `npm test` now runs two coverage gates: the server half keeps its 85/80/75
+  thresholds, and the browser half is measured separately at its own floor.
+- `docs/design/DESIGN.md` states where each setting lives and points at the
+  guard test that enforces the rule instead of pinning a version (#1088).
+
+### Fixed
+- `docs/plans/` is no longer referenced as a live path; the browser chunks and
+  the 127-key schema are described as they are (#1088).
+- README route tables listed 55 routes while the code registered 61, and ten
+  routes were undocumented (#1089).
+
+---
+## [0.9.1] - 2026-11-17
+
+A follow-up to 0.9.0 driven by an external bug report (GitHub #36). Every item
+here was reproduced against the code before it was fixed.
+
+### Fixed
+- **#1096** A transport failure is no longer treated as an account fault. One
+  `UND_ERR_CONNECT_TIMEOUT` behind a proxy used to park a healthy account for the
+  full cooldown (30m) plus quarantine (60m) and answer `no usable subscription
+  account`; the account was fine. Connection-level codes (`UND_ERR_*`, `ECONNREFUSED`,
+  `ENOTFOUND`, TLS failures) and gateway statuses (`502`/`503`/`504`) now form their
+  own class: a short bounded retry, then an error that names the network cause,
+  with no cooldown and no quarantine. Explicit `429`/`401`/`402` verdicts are
+  unchanged.
+- **#1097** One context window per account. The same codex model reported 200 000
+  in the model catalogue, 128 000 in `accounts[].capabilities`, and the vendor
+  rejected above 150 000. `lib/context-window.js` is now the only source, with
+  model rules, plan upgrades and provider defaults in one place, so compaction
+  budgets and picker badges agree.
+- **#1098** An account that was never probed no longer reads `100 / healthy`.
+  `computeHealthScore()` returns `null` without observations and the badge says
+  `unprobed`; the settings table shows "not probed" instead of a green score
+  nobody measured.
+
+### Added
+- **#1099** A successful `POST /dsh-subscriptions/check` now clears an automatic
+  cooldown and releases an automatic quarantine, and reports what it cleared in
+  `cleared: []`. Before this, users waited out the window (or restarted DSH) after
+  the network recovered. A manual park is preserved, because it is an operator
+  decision rather than a failure state.
+
+### Verification
+- Full suite: 1510 tests, exit 0.
+- Coverage: server 93.62 / 80.30 / 87.35; browser 37.31 / 48.95 / 37.02.
+- Pack size: largest file `lib/client.js` 233150 B.
+
+## [0.9.2] - 2026-11-17
+
+### Added
+- **#1103** Experience modes: `experienceMode` (`simple` / `balanced` / `power`)
+  decides how much of the policy surface the settings card presents first, so
+  someone with two accounts is not asked to configure an account lease. A mode is
+  a view over the same settings, not a second store — switching never writes,
+  resets or hides a stored value. An unrecognised value falls back to `balanced`,
+  never to `power`, and a group the current mode holds back says how many settings
+  it is hiding.
+
+### Verification
+- Full suite: 1527 tests, exit 0.
+- Coverage: server 93.67 / 80.12 / 87.38; browser 37.37 / 48.96 / 37.02.
+- CI: quality, parallel-tests, node22-tests, host-cohort — all green.
+
+---
+
+## [0.8.1] - 2026-11-14
+
+### Fixed
+- **#1078** Antigravity upstream sentinel: a "no longer supported" notice inside an HTTP 200 response (no `finishReason`) is now detected in both the streaming buffer and the end-of-stream flush and raised as `CLIENT_OUTDATED` with a short preview and an update hint. The router treats it as fatal instead of rotating through every account; ordinary streams are untouched.
+
+### Changed
+- **#1077** Module split without behaviour change: `lib/routes/accounts.js` 703 -> 555 (`routes/login.js` for the chained-login slot, `routes/presets.js` for preset CRUD/apply), `lib/index.js` 614 -> 588 (`fetch-for-ref.js` for the per-account fetch factory). Routes, methods and payloads are identical; the route smoke test now counts the moved handlers in their own files.
+
+### Verification
+- Full suite: 1433 tests, 100% pass, exit 0.
+- Coverage: lines 93.60%, branches 80.17%, functions 87.40%; pack size 231 388 B, 164 files, no internal artefacts.
+- Preflight: FAIL=0.
+
+## [0.8.0] - 2026-11-14
+
+First minor release on top of the 0.7 line. No breaking changes: the bump marks
+the end of the audit cycle (#1039-#1059), the four upstream/regression fixes and
+the new routing, quota, media and operations surfaces shipped since 0.7.80.
+
+### Highlights since 0.7.84
+- Cross-process account lease (#1039) - two DSH instances no longer burn the same quota window.
+- Settings that work again: the #1043 hook-order regression is fixed (#34, patch by GoldCatCar).
+- Vendor drift fixed: Claude OAuth on `platform.claude.com` (#33), Antigravity client UA 2.32.0 (#32).
+- Window-aligned quota forecast (#1041), chained logins (#1040), routing presets (#1045), time-of-day account windows (#1046, now normalised from config - #1076).
+- Shareable subscription passport (#1048) and a fallback proxy pool (#1050).
+- Client bundle split: 251 364 B -> 231 388 B with a 240 000 B ceiling; module decomposition (#1059); DESIGN.md as a contract (#1054); READMEs without release chronology (#1055).
+
+### Verification
+- Full suite: 1429 tests, 100% pass, exit 0.
+- Coverage: lines 93.5%, branches 80.3%, functions 87.4%; pack size 231 388 B.
+- Isolated test server: exact .tgz installed, health reports 0.8.0.
+
+## [0.7.89] - 2026-11-14
+
+### Fixed (external reports)
+- **#34** React #310 broke Settings -> Subscriptions in 0.7.87 and 0.7.88: the settings-search effect introduced in #1043 was declared after the `if (!draft) return` loading branch, so the hook count changed between the first and second render. The effect is hoisted above the early return and depends on `Boolean(draft)`; a regression test now forbids any hook after that return. Analysis and patch by **GoldCatCar** (GitHub PR #35).
+- **#33** Claude re-authentication: Anthropic moved the Claude Code OAuth flow to `platform.claude.com`. The authorize URL and `redirect_uri` are updated (the old console callback now redirects) and the default `claudeCcVersion` is bumped to 2.1.325.
+- **#32** Antigravity streams: Cloud Code rejects every 1.x client by answering HTTP 200 with a "no longer supported" notice and no `finishReason`, which DSH reported as INCOMPLETE. The client user-agent is bumped to `antigravity/2.32.0`, a version the same token accepts.
+
+### Added
+- **#1048** Subscription passport: `GET /dsh-subscriptions/passport?format=md|html` renders a token-free, shareable report (masked labels, totals, empty state) in Markdown or standalone HTML.
+- **#1050** Fallback proxy pool: `proxyPool` / `proxyPoolCooldownMs`; when an account has no `proxyUrl`, the next healthy pool entry is used, failures get an increasing cooldown, and `/status` exposes the pool health.
+
+### Verification
+- Full suite: 1424 tests, 100% pass, exit 0; new tests cover the hook order, the Claude endpoints, the Antigravity UA, the passport renderer and the pool.
+- Coverage: lines ~93.9%, branches ~80.4%, functions ~87.1%; pack size 231 388 B.
+
+## [0.7.88] - 2026-11-14
+
+### Added
+- **#1045** Session routing presets:
+  - `lib/routing-presets.js` normalises, upserts (dedup by id or name, cap 20) and removes a named preset that bundles a model, a reasoning effort, an account rule and a fallback chain;
+  - `lib/preset-session.js` binds a preset to a session;
+  - `POST /dsh-subscriptions/presets` stores presets through the settings API and `POST /dsh-subscriptions/presets/apply` binds one to a session, returning its effort/model (presets are readable from `GET /config`);
+  - `streamWithRotation` merges the bound preset account rule into the picker rules, so applying a preset changes account selection immediately.
+- **#1046** Time-of-day account windows:
+  - `lib/schedule-rules.js` (`normalizeScheduleRule`, `isScheduleActive`, `filterBySchedule`) supports explicit `tzOffsetMinutes`, weekday scoping, overnight windows and provider- or account-scoped rules, and never returns an empty pool;
+  - `streamWithRotation` filters the pool by `config.scheduleRules` before any other selection step.
+
+### Configuration
+- New keys: `routingPresets`, `scheduleRules` (both empty by default, so behaviour is unchanged until configured).
+
+### Verification
+- Full suite: 1407 tests, 100% pass, exit 0; 17 new tests including a stream integration.
+- Coverage: lines 93.9%, branches 80.4%, functions 87.1%; pack size 231 371 B.
+
+## [0.7.87] - 2026-11-14
+
+### Added
+- **#1043** Settings search and a working Dashboard tab:
+  - the tab bar and the searchable provider picker were already present; the Dashboard tab had no CSS rule and therefore showed every group, and the long form had no search;
+  - added `[data-tab=dashboard]` pane rules, a settings search input that filters visible groups by heading/body text (Escape clears), and the `.dsub-search` / `.dsub-hidden` styles.
+- **#1044** First-run onboarding:
+  - a three-step block appears only while no account is connected: choose a provider (existing picker), find credentials the CLIs already stored (existing `discover-local`, imported through `import-local`), verify the connection (existing smoke test);
+  - English and Chinese labels for every new string.
+
+### Verification
+- Full suite: 1390 tests, 100% pass, exit 0.
+- Coverage: lines 93.9%, branches 80.4%, functions 87.1%.
+- ESLint clean, TypeScript check clean, pack size OK (largest file 231 371 B against the 240 000 B client-bundle ceiling).
+
+## [0.7.86] - 2026-11-14
+
+### Added
+- **#1041** Window-aligned quota forecast:
+  - New `lib/quota-windows.js` (`forecastWindow`, `forecastWindows`) reports, per quota window: remaining percent, burn rate per hour, ETA to the safety floor, hours to reset, predicted percent at reset, a survives-to-reset verdict, confidence and sample count.
+  - Confidence stays `calibrating` until 30 minutes of observations exist; a window without samples reports zero burn instead of a guess.
+  - `GET /dsh-subscriptions/quota-forecast?provider=&ref=&safetyFloor=` (same-origin) exposes the report per slot and synthesises a window when a vendor reports only a bare percentage.
+- **#1040** Chained account logins:
+  - New `lib/login-queue.js` (`planNextSlot`) picks the first free slot index for a provider, fills gaps, ignores other providers and reports exhaustion at the 99-slot cap.
+  - `POST /dsh-subscriptions/accounts/next-slot` reserves that slot through the settings API (same revision-safe path as `import-local`).
+  - The provider card gained a **Connect another** button that reserves the slot and immediately starts the existing OAuth flow for it (EN/ZH labels).
+
+### Verification
+- Full suite: 1384 tests, 100% pass, exit 0.
+- Coverage: lines 93.9%, branches 80.4%, functions 87.1%.
+- ESLint clean, TypeScript check clean, pack size OK (largest file 227 556 B).
+- Host cohort 0.2.1-rc.5 verified locally: 1384/1384.
+
+## [0.7.85] - 2026-11-14
+
+### Added
+- **#1039** Cross-process and cross-machine account lease:
+  - New `lib/account-lease.js` writes one atomic lease file per `provider#ref` under `$DSH_HOME/subscriptions/leases` (holder pid/host, acquire/heartbeat/release/list, TTL takeover after a crash).
+  - `streamWithRotation` skips an account leased by another instance, records `lease_held` in the decision trace, and falls back to the shared pool (`lease_all_held`) only when every account is taken.
+  - In-process `ctx.subscriptions.request` honours the same lease.
+  - Settings `leaseEnabled` (default true), `leaseTtlMs` (60 s) and `leaseDir`; active leases exposed by `GET /dsh-subscriptions/status`.
+- **#1053** `lowest-latency` rotation strategy is now selectable in settings (it was implemented but unreachable), with English and Chinese labels and a test that cross-checks the select against `rotate.js`.
+
+### Fixed
+- **#1058** Codex web search no longer defaults to a hardcoded model id: the setting is empty by default and the request omits `model` so the upstream picks its own; the body builder is exported and unit-tested.
+
+### Performance & Packaging
+- **#1057** English locale dictionary (~480 keys) moved into the lazy chunk `lib/client.en.js`; `lib/client.js` shrank from 251 364 B to 226 677 B (−9.8%) against the 262 144 B Store limit. Added a dedicated 240 000 B client-bundle ceiling (`scripts/pack-limits.mjs`, enforced by `check-pack-size.mjs`) plus a test proving the guard trips on an artificial oversize.
+
+### Documentation
+- **#1054** `docs/design/DESIGN.md` rebuilt as a current contract (300 lines instead of 780 with 43 version-stamped sections): added Feature Surface Map, Route Policy and Publication Set; corrected the stale "no CLI / no tools" claims.
+- **#1055** All three READMEs lost their release chronology (35 version tokens removed, capability list renumbered); the settings samples no longer carry version tags.
+- **#1056** Repository hygiene: orphaned worktree directories removed (5), stale `.planning/` archived.
+
+### Refactoring
+- **#1059** Oversized modules split without behaviour changes: `vault-sync.js` 782 → 415 (`vault-sync/remote.js`), `index.js` 656 → 595 (`oauth-html.js`, `image-service.js`, `startPendingSweep`), `accounts.js` 639 → 595 (`account-clock.js`, `account-master-key.js`). `client.panels.js` stays single with a recorded design decision.
+
+### Verification
+- Full suite: 1367 tests, 100% pass, exit 0.
+- Coverage: lines 93.93%, branches 80.43%, functions 87.12%.
+- ESLint clean, TypeScript check clean, pack size OK (largest file 226 677 B).
+
+## [0.7.84] - 2026-11-13
+
+### Fixed & Hardening
+- **#1035** Background loops error logging & health monitoring:
+  - Implemented `lib/loop-health.js` with deduplicated `logger.warn` reporting (5-minute cooldown per operation), consecutive failure tracking, and secret masking in error messages.
+  - Wrapped background tasks in `lib/background-loops.js` (`heartbeat`, `probe`, `ollamaSync`, `vaultSync`, `digest`) via `safeLoop(...)`.
+  - Exposed `backgroundLoops` health status in `GET /dsh-subscriptions/status` and `GET /dsh-subscriptions/diagnostics`, flagging warnings when consecutive failures >= 3.
+  - Eliminated 45+ silent `.catch(() => {})` sites across `lib/` (`index.js`, `accounts.js`, `routes/*.js`, `vault-sync.js`, `wire.js`, `sse.js`, `alerts.js`, `client.panels.js`, `client.js`), ensuring all swallowed errors are recorded in the diagnostics ring buffer via `ignoreErr(label)`.
+  - Added test suite `test/loop-health.test.mjs` and enforced clean catch audit in `test/catch-audit.test.mjs`.
+
+### Verification
+- Full test suite passing (100% pass, 0 failures), ESLint clean, TypeScript check clean.
+- Coverage: lines 93.92%, branches 80.28%, functions 87.05%.
+- DSH Preflight: `FAIL=0, WARN=3`.
+- Pack size check: largest file `lib/client.js` 251,203 bytes (under 262 KB limit).
+
+## [0.7.83] - 2026-11-10
+
+### Added & Features
+- **#1028** Cache-affinity session routing: expanded prompt caching support to Gemini, Kimi, and Qwen; registered `/dsh-subscriptions/routing/trace` route with per-session cache hit telemetry and decision reason.
+- **#1029** Economic ROI & token savings analytics: implemented `calculateSavingsReport` engine and `GET /dsh-subscriptions/analytics/savings` route to calculate delivered value, prompt caching savings, and subscription ROI multipliers.
+- **#1030** Sidebar quota indicator: registered quota card in `sidebar.footer.action` (`dsh-subscriptions-quota`) positioned above Settings, matching sibling plugins (Clinebot, OpenCode, Ollama), clicking it opens Subscriptions Center.
+- **#1031** Central Subscriptions Center: registered central dashboard panel `SubscriptionsPanel` (`main: subscriptions-panel`) with tabs: Accounts Matrix, Routing Trace, Savings & ROI, and Activity.
+- **#1032** Settings account polish: added per-account savings & quota badges in Settings and `sidebarQuotaDisplay` dropdown selector (`off`, `auto`, `always`).
+
+### Security & Hardening
+- **#1019** OAuth lifecycle decoupled: modernized `lib/loopback.js` with async server replacement and port release, decoupling OAuth completion from HTTP listener lifecycle.
+- **#1020** Toast notification control: exposed and enforced `enableToasts` configuration in `pollAlerts` to allow users to disable toast popups.
+- **#1021** Responsive HTML subscriptions table: structured `/dsh-subscriptions/subscriptions` with an adaptive CSS-styled HTML table showing account quotas, resets, and status.
+- **#1022** Vault snapshot restore test suite: created comprehensive test suite `test/routes-vault-snapshots.test.mjs` verifying snapshot restore, preflight read error, and fail-closed handling during key rollback.
+- **#1023** SSRF protection: blocked IPv6 transitional address ranges 6to4 (`2002::/16`) and Teredo (`2001:0000::/32`) in `lib/webhook-url.js`.
+- **#1024** Request source validation: removed test-only step 7 host validation bypass from `isTrustedSettingsRequest` in `lib/http.js`.
+- **#1025** Code cleanup: removed redundant `lib/utils.js`, unified logging with `ignoreError` in `lib/index.js`.
+- **#1026** Route documentation sync: synchronized catalog of all 55 HTTP routes and added full `settings.yaml` reference in `README.zh.md`, `README.ru.md`, and `README.md`.
+- **#1027** DEV repository hygiene: fast-forwarded DEV working copy, cleaned old merged branches and worktrees.
+
+### Verification
+- Full test suite passing (1,341 unit tests, 100% pass), ESLint clean, TypeScript check clean.
+- Coverage: lines 93.9%, branches 80.2%, functions 85.1%.
+- DSH Preflight: `FAIL=0, WARN=3`.
+- Pack size check: largest file `lib/client.js` 250,391 bytes (under 262 KB limit).
+
+## [0.7.82] - 2026-11-09
+
+### Security
+- **#1010** Cross-site data disclosure guard: added strict `isTrustedSettingsRequest(req, ctx)` check to `/dsh-subscriptions/subscriptions` route, blocking cross-site and unauthorized fetches from accessing account emails, quotas, and history.
+- **#1011** SSRF protection: blocked IPv4/IPv6 translation Well-Known Prefix `64:ff9b::/96` (RFC 6052), Local-Use prefix `64:ff9b:1::/48` (RFC 8215), documentation ranges RFC 5737 (`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`), RFC 3849 (`2001:db8::/32`), and Discard-Only RFC 6666 (`100::/64`) in `lib/webhook-url.js`.
+
+### Fixed & Polish
+- **#1012** API error contract conformance: unified error formats across `/discover-local`, `/import-local`, `/ping`, and `/webhook/test` to strictly return standard `{ ok: false, error: { code, message } }`.
+- **#1013** Preflight conformance: replaced empty catch in `lib/client.js` settings.section slot registration with tracked diagnostics logging via `debugIgnored`.
+- **#1014** Public facade completeness: exported utility helpers `clearIgnoredErrors`, `resetClientVersionCache`, `referenceImageRequest`, `modelAllowlistMode`, `resetRoundRobinState`, `isSecretLike`, `resetAuthFailureStreaks`, `resolvePublicHostname` in `lib/index.js`.
+- **#1015** Bundle size optimization: extracted `ResetCreditsPanel`, `SubsPill`, and `QuotaCapsule` into `lib/client.panels.js`, reducing `lib/client.js` from 241,779 bytes (92.2% of Store limit) to ~209,800 bytes (~80.0%), leaving >52 KB of safe headroom.
+- **#1016** Architecture documentation: documented the full catalog of all 54 HTTP routes and adapter endpoints in `docs/design/DESIGN.md`.
+- **#1017** Functional test coverage: added comprehensive route tests in `test/routes-functional.test.mjs`, raising `lib/routes.js` test line coverage to 100%.
+
+### Verification
+- Full test suite passing, coverage gates green, package pack size check green (largest file 209 KB vs 262 KB limit), DSH preflight `FAIL=0`.
+
+## [0.7.81] - 2026-11-07
+
+### Security
+- **#1001** SSRF protection: strict port matching and IPv6 bracket handling in `envProxyForUrl`; documented proxy DNS trust model where public IP resolution fail-closed checks precede outbound routing.
+- **#877** Secret scrubbing: scrub JSON fields `authorization`, `proxy_authorization`, `proxyAuthorization`, `auth_token`, and `authToken` in `sanitizeSecrets` and `isSecretLike`.
+
+### Fixed
+- **#1003** Vault import atomicity: fail-closed preflight snapshot in `handleVaultImport` and `/vault/snapshots/restore` (abort on storage read failure instead of assuming missing credentials), preventing unintended credential deletion during rollback. Tracked rollback errors.
+- **#953** Vault pull race condition: preserved tombstones during concurrent Vault pull & logout in `mutateBlob` and `saveBlob` via `preserveTombstone` option, preventing backup resurrection.
+- **#1008** Preflight conformance: replaced empty catch blocks with tracked error logging (`ignoreError`), achieving `FAIL=0` on standard DSH preflight.
+
+### Verification
+- Added test suite `test/issues-1001-1008-followup.test.mjs` verifying #1001, #877, #953, #1003, and #1008.
+- Preflight: FAIL=0, all tests passing, coverage gates green.
+
+## [0.7.80] - 2026-11-06
+
+### Security
+- **#1001** SSRF protection: account for `NO_PROXY` / `no_proxy` in `envProxyForUrl` to enforce pinned DNS dispatchers on direct connections, preventing DNS rebinding.
+- **#1005** Proxy password masking: safely mask proxy passwords containing Unicode, spaces, and percent-encoding in `publicConfig` and restore in `restoreMaskedSecrets`.
+- **#877** Secret scrubbing: expanded `sanitizeSecrets` and `isSecretLike` to scrub camelCase JSON credential fields (`accessToken`, `refreshToken`, `idToken`, `sessionKey`, `sessionToken`, `apiKey`, `apiToken`, `clientSecret`, `privateKey`, `secretKey`, `proxyPassword`, `masterKey`, `passphrase`, `cookie`).
+- **#940** Sensitive headers: masked `Proxy-Authorization`, `Cookie`, and `Set-Cookie` in custom vendors and provider packs.
+- **#1006** Vault KDF safety: `encryptWithPassphrase` rejects unknown algorithms with an explicit error instead of silently falling back to legacy KDF.
+
+### Fixed
+- **#1002** Webhook delivery: follow same-origin redirects regardless of `Content-Length` header presence.
+- **#1003** Vault import atomicity: transactional rollback of stored credential blobs if settings replacement fails during import or snapshot restore.
+- **#953** Vault pull freshness: preserve newer local tokens in `mutateBlob` and strictly enforce cleared account tombstones.
+- **#1004** Image reference builder: consolidated `referenceImageRequest` to delegate to production `codexBody` and `grokBody` from `lib/images.js`.
+
+### Verification
+- Dedicated test suite `test/issues-1001-1006.test.mjs` verifying all 9 issues.
+- Preflight: FAIL=0, all tests pass, coverage gates green.
+
+## [0.7.79] - 2026-11-06
+
+### Fixed
+- **#993** Re-exported media policy helpers (classifyMediaFailure, shouldRetryMedia, selectMediaAccount, resolveToolPolicy, toolAllowed) in index.js.
+- **#994** Connected safeProviderIconUrl into accounts-describe.js for avatar URL validation and re-exported provider icon helpers in index.js.
+- **#995** Removed stray validateReasoningEffort function reference from /dsh-subscriptions/session-reasoning response object in routes/status-extras.js.
+- **#996** Re-exported refreshIsCurrent from account-reliability.js in index.js.
+- **#997** Connected parseNpmVersion into client-version-service.js and re-exported client version helpers in index.js.
+- **#998** Corrected example config defaults in README.md (showSpeedToggle: false, showSubsPill: false).
+- **#999** Added functional test suite for POST /dsh-subscriptions/webhook/test covering method guards, same-origin validation, and delivery responses.
+
+### Verification
+- npm test: all tests passing, coverage and pack-size gates green.
+- Preflight: FAIL=0, dead exports resolved.
+
+## [0.7.78] - 2026-11-06
+
+### Added
+- **#991** All on-screen badges, pills, and widgets default to disabled:
+  - Header SUBS pill (`showSubsPill`) defaults to `false`.
+  - Composer Speed button (`showSpeedToggle`) defaults to `false`.
+  - Quota widget placement (`quotaWidget`) defaults to `off`.
+  - Status-bar quota scope (`composerQuotaDisplay`) defaults to `hidden`.
+  - Composer quota indicator (`composerQuota`) defaults to `off`.
+  All indicators are cleanly enabled by the user in Settings > Display.
+
+### Fixed
+- **#986** Added explicit HTTP method guard to `/dsh-subscriptions/oauth/headless-redirect`; non-GET methods now return `405 Method Not Allowed`.
+- **#987** Connected `proxyPrecedence` from `account-reliability.js` into `proxy.js` and `index.js` for deterministic host vs plugin proxy resolution.
+- **#988** Connected `mergeClaudeCredentials` into `import-auth.js` to merge credentials by token freshness (`expiresAt`) between file and keychain.
+- **#989** Replaced server-side raw `console.log` with canonical `ctx.logger.info` in OAuth device flow (`routes/oauth.js`).
+- **#990** Resolved documentation drift in `docs/design/DESIGN.md`.
+
+### Verification
+- `npm test`: 881 tests passing, coverage and pack-size gates green.
+- Preflight: FAIL=0, 0 console.* outside client.
+
+## [0.7.77] - 2026-11-05
+
+### Fixed
+- **#965** vault imports that use the legacy weak KDFs (DSHE1 scrypt, or DSHE2's 100k PBKDF2 fallback) now return `weakKdf: true`, the detected `kdf` and a re-export warning. Fresh DSHE2-600k/DSHE3 exports are unaffected.
+
+### Verification
+- `npm test`: 1301 tests, coverage (branch 80.6%) and pack-size gates green.
+
+## [0.7.76] - 2026-11-05
+
+### Fixed
+- **#965** Claude keychain writes now feed the whole `security -i` command through stdin; the access/refresh token blob never appears on an argv. Tests cover the stdin runner and assert the secret is absent from the command line.
+- **#966** remaining rotation hardening: one bare 401 no longer parks an account for 24 h (evidence such as `invalid_grant`/`revoked`, or two consecutive 401s within five minutes, is required); the rotation comparator is a strict deterministic weak ordering; cascade fallback maps known cross-vendor model families instead of sending the source id; `pickAccountWithTrace` no longer mutates caller pacing fields; the queue is created per plugin instance and shared by the adapter, status routes, diagnostics and accounts view.
+- **#969** CI now has a `host-cohort` job that installs the production `0.2.1-rc.5` host packages and runs the full suite against them.
+- **#970** release-chain controls are documented in `docs/RELEASE-SECURITY.md`; deploy supports a pinned `DEPLOY_KNOWN_HOSTS` secret (StrictHostKeyChecking=yes when present). Signed tags, npm provenance and Sigstore/SBOM attestations are explicitly documented as unsupported on this runner instead of being implied.
+
+### Verification
+- `npm test`: 1300 tests green locally and against the 0.2.1 host cohort; coverage (branch 80.5%) and pack-size gates pass.
+
+## [0.7.75] - 2026-11-05
+
+### Fixed
+- **#981** deploy hardening: both Release and manual Deploy workflows now run the same `scripts/deploy-remote.sh`. Before installing, it scans the WEB profile for `file:/tmp/*.tgz` dependencies whose tarball disappeared and regenerates them from the published npm package, then installs, restarts, and verifies the health version. This prevents the stale-tarball deploy failures seen with `dsh-vision-bridge@0.6.23`.
+
+### Verification
+- `npm test`: 1291 tests, coverage and pack-size gates green (plus `bash -n` for the deploy script on Linux CI).
+
+## [0.7.74] - 2026-11-05
+
+### Fixed
+- **#979** new independent `showSubsPill` setting controls the SUBS indicator in the chat header (default visible). It is discoverable next to the Codex Speed toggle, applies immediately without a reload, survives restarts, and only hides the pill: account tracking, rotation, quotas, toasts and the Speed setting stay active. `GET /status` reports the visibility so a reload restores the same state.
+- **#974/#979** documented both visibility settings in the configuration reference.
+
+### Verification
+- `npm test`: 1289 tests, coverage and pack-size gates green. Tested against the released Web build; no Desktop-only code paths are involved.
+
+## [0.7.73] - 2026-11-05
+
+### Fixed
+- **#967** quarantine persistence no longer writes synchronously on every success/cooldown transition: the in-memory pruning stays immediate, the disk write is debounced by one second, and pending data is flushed on plugin dispose and process exit. The `warmupAt` description now states local wall-clock/DST semantics.
+- **#969** peer ranges collapse to the two tested cohorts (`^0.1.7-rc.2 || ^0.2.0-rc.1`), the cordis peer gets an explicit bounds test, the mirror no longer publishes `.gitignore`, and the README documents why the sanitized mirror is not a runnable test tree.
+
+### Still open
+- **#969** CI leg against the 0.2.1 host cohort.
+- **#965**, **#966**, **#970**.
+
+### Verification
+- `npm test`: 1288 tests, coverage (branch 80.4%) and pack-size gates green.
+
+## [0.7.72] - 2026-11-05
+
+### Fixed
+- **#960** settings panes now mount on first visit instead of all at once: Sources, Dashboard, Provider packs, Vault and Accounts render lazily and keep their state afterwards.
+- Sources polling stops while the Routing tab is inactive and while the document is hidden; the reset-credit countdown moved into a `ResetCreditsPanel` leaf so its 1 s tick no longer re-renders the whole settings section.
+- Model catalog filtering/sorting/slicing and the dirty-form comparison are memoized, removing repeated work on every render.
+
+### Verification
+- `npm test`: 1285 tests, coverage and pack-size gates green.
+
+## [0.7.71] - 2026-11-05
+
+### Fixed
+- **#974** new `showSpeedToggle` setting controls the Codex Speed button in the composer toolbar. It defaults to visible, is saved with the plugin config (Web and Desktop), applies immediately after saving, and only hides the button — the selected speed mode, `/fast` command, subscriptions, quotas and other indicators are untouched. `GET /speed` now reports the current visibility so the button survives reloads.
+
+### Verification
+- `npm test`: 1284 tests, coverage and pack-size gates green (client 243564 B).
+
+## [0.7.70] - 2026-11-05
+
+Follow-up to the audit batch (remaining sub-items).
+
+### Fixed
+- **#958** the remaining user-visible literals are localized in both dictionaries: ErrorBoundary (title/unknown/retry), wizard counters, panel units (`snapshots/bytes/slots/models/healthy keys`), quota aria labels, active/fast badges, `m ago`, `of`, connected/Codex Speed replies and the speed toggle.
+- **#959** shared `useModalA11y()`: focus trap inside `.dsub-modal`, body scroll lock, Escape to close and focus restore. Applied to the pill modal, setup wizard, provider picker and quota popover.
+- **#968** “Refresh quotas” now runs the heartbeat instead of duplicating the per-account check; legacy plugin seats are unregistered when the host registers `settings.section` after the fallback timer, removing duplicate cards.
+- **#966** a mid-stream failure records `stream_error` plus a short cooldown (and persists it through `onCooldown`) instead of retrying forever with no trace; queue-only failures retry the same account once before consuming the attempt.
+- **#967** expired quarantines without warm-up attempts are pruned and no longer persisted (records with attempts stay for the mandatory probe), the round-robin cursor map is capped at 128 entries, and the interval digest seeds its clock so a remount does not fire immediately.
+- **#969** one source of truth for package-size limits (`scripts/pack-limits.mjs`, used by CI and the test, both with `--ignore-scripts`); the locale test reads fixtures relative to itself.
+- **#965** `X-Forwarded-Proto/Host` are only trusted when `DSH_TRUST_PROXY=1`.
+
+### Still open
+- **#960** lazy pane mounting / memoized catalog / resetTick isolation.
+- **#965** Claude keychain secret via stdin.
+- **#966** per-apply queue instance, cascade model mapping, 401-vs-revocation policy.
+- **#967** debounced quarantine persistence, warm-up DST documentation.
+- **#969** peer-range collapse, mirror tree/.gitignore, runnable mirror.
+- **#970** signed tags/SBOM/provenance defaults.
+
+### Verification
+- `npm test`: 1279 tests, coverage (line 93%, branch 80.5%) and pack-size gates green.
+
+## [0.7.69] - 2026-11-04
+
+Audit batch (#940–#971). One branch, one release.
+
+### High
+- **#940** `providerPacks` credentials are masked by `publicConfig` and restored on save, like `customVendors`.
+- **#941** partial `PUT /config` merges over the live snapshot; credentials are unlinked only when `slots` is sent with `dropCredentials: true`.
+- **#942** the refresh backoff error is switchable, so one token-endpoint blip rotates to another account instead of failing the call.
+- **#943** a refresh captures the credential generation and discards its result if the user re-authorized meanwhile.
+- **#944** quota pill/capsule read the latest props through a ref and follow model/session switches.
+- **#945** the reload generation guard lives in `useRef`, so stale responses cannot overwrite edits or resurrect removed slots.
+- **#946/#961** the mirror SHA is emitted only after a successful push; the step uses `pipefail`; unchanged trees reuse the mirror head.
+- **#947** `engines.node >= 22.19.0`, README badges updated, and CI runs the suite on Node 22 as well as 24.
+
+### Medium
+- **#948** `/health` is same-origin gated; derived keys are cached (bounded) instead of re-running PBKDF2 per read.
+- **#949** model-scoped cooldowns are forwarded and persisted.
+- **#950** `webhookSecret` is volatile, so it can be saved from the panel.
+- **#951** per-slot concurrency defaults to inherit; `accountMaxConcurrency` now works and `0` is rejected.
+- **#952** the probe loop is single-flight, notifies once per quarantine window and uses the shared revoked duration.
+- **#953** vault pull keeps the newest credential and refuses to resurrect logged-out slots (persisted tombstones).
+- **#954/#955** the at-rest badge reflects the stored value; a key mismatch surfaces `DECRYPT_FAILED` instead of "logged out".
+- **#956** usage, organization switch and OAuth completion use `mutateBlob` inside the serialized write queue.
+- **#957** nullable forecast/wizard fields are guarded; `GET /config` failures surface an error instead of an empty form.
+- **#961/#962** release ordering (npm first), dry-run/tag validation before git/env, real forbidden-path guard, source-SHA pinning, token moved out of the remote URL, cleanup step.
+- **#963** `docs/SUPPLY-CHAIN.md` documents that overrides are dev-only, the Node floor and release ordering.
+- **#964** coverage/lint/typecheck include `bin/`; CI runs a prod dependency audit and Node 22.
+- **#971** ADR-0001/DESIGN/README refreshed (CSS route, Node floor, version).
+
+### Partially addressed (issues stay open)
+- **#958** legacy seats receive the translator; the remaining hardcoded UI strings are not all localized yet.
+- **#959** wizard dialog semantics and portaled toasts; focus trap/scroll lock still missing.
+- **#960** pollers pause when the document is hidden and the composer off-mode returns early; panes are still mounted eagerly and resetTick still re-renders the section.
+- **#965–#970** device-request timeouts, loopback cross-site guard, `/update` GET gate, extra token formats, proxy hardening, FIFO queue eviction, timeout classifier, reset-credit status codes, client keys/opener/CSS cache/zh chunk, `ip-address` override, sharded parallel tests, updater `--ignore-scripts`, publish guards landed; the remaining sub-items in those batches are still open.
+
+### Verification
+- `npm test`: 1275 tests, coverage and pack-size gates green; suite also green on Node 22.
+- Live deploy verification after release.
+
 ## [0.7.68] - 2026-11-02
 
 ### Fixed

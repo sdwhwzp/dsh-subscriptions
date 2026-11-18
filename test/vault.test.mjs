@@ -33,26 +33,52 @@ test('vault validation rejects credentials outside its declared slots', () => {
   ]) assert.throws(() => importVault(encrypted(data), passphrase), /vault/)
 })
 
-function routes({ saveFails = false, settingsAvailable = true } = {}) {
+function routes({ saveFails = false, settingsAvailable = true, replaceFails = false, existing = {}, unreadableRef } = {}) {
   const registered = []
   const writes = []
+  const cleared = []
+  const saved = new Map(Object.entries(existing))
   let config = { slots: [{ provider: 'claude', index: 2 }] }
+  const settings = {
+    revision: () => 9,
+    async replace(value, revision) {
+      assert.equal(revision, 9)
+      if (replaceFails) throw new Error('fixture settings write failed')
+      config = value
+    },
+  }
   registerAccountsRoutes({
     effect(fn) { fn() },
     webServer: { register(route) { registered.push(route); return () => {} } },
   }, {
     live: () => config,
-    getSettingsApi: () => settingsAvailable ? { replace: async (value) => { config = value } } : null,
+    getSettingsApi: () => settingsAvailable ? settings : null,
     stripLegacySlots: (value) => value,
-    store: { saveBlob: async (ref, blob) => { if (saveFails) throw new Error('fixture write failed'); writes.push([ref, blob]) } },
+    store: {
+      async loadBlob(ref) {
+        if (ref === unreadableRef) throw Object.assign(new Error('fixture credential could not be decrypted'), { code: 'DECRYPT_FAILED' })
+        if (!saved.has(ref)) throw Object.assign(new Error('fixture credential absent'), { code: 'AUTH' })
+        return saved.get(ref)
+      },
+      async saveBlob(ref, blob) {
+        if (saveFails) throw new Error('fixture credential write failed')
+        writes.push([ref, blob])
+        saved.set(ref, blob)
+      },
+      async clearRef(ref) {
+        cleared.push(ref)
+        saved.delete(ref)
+      },
+    },
     syncCustomVendors() {}, syncAdapter: async () => {}, refreshModels: async () => {}, accountsView: async () => [],
   })
   const handler = registered.find(row => row.path.endsWith('/vault/import')).handler
   return {
-    writes, config: () => config,
+    writes, cleared, saved, config: () => config,
     async send(vault, headers = { host: 'localhost:3081', origin: 'http://localhost:3081', 'sec-fetch-site': 'same-origin' }) {
       const req = Readable.from([Buffer.from(JSON.stringify({ vault, passphrase }))])
       req.method = 'POST'; req.headers = headers
+      req.socket = { remoteAddress: '127.0.0.1' }
       const result = {}
       try {
         await handler(req, { writeHead(code) { result.code = code }, end(body) { result.body = JSON.parse(body) } })
@@ -80,4 +106,35 @@ test('vault import merges declared slots and reports storage failures', async ()
   const unavailable = routes({ settingsAvailable: false })
   assert.equal((await unavailable.send(encrypted({}))).code, 400)
   assert.deepEqual(unavailable.writes, [])
+})
+
+function twoSlotVault() {
+  return encrypted({
+    slots: [...slots, { provider: 'codex', index: 2 }],
+    blobs: { ...blobs, CODEX_OAUTH_2: { accessToken: 'new-slot-fixture' } },
+  })
+}
+
+test('a settings write failure restores overwritten credentials and removes newly imported blobs', async () => {
+  const original = { accessToken: 'original-slot-fixture' }
+  const api = routes({ replaceFails: true, existing: { CODEX_OAUTH_1: original } })
+  const config = api.config()
+  const result = await api.send(twoSlotVault())
+  assert.equal(result.code, 400)
+  assert.equal(result.body.error.message, 'fixture settings write failed')
+  assert.equal(api.config(), config)
+  assert.deepEqual(api.writes.map(([ref]) => ref), ['CODEX_OAUTH_1', 'CODEX_OAUTH_2', 'CODEX_OAUTH_1'])
+  assert.deepEqual(api.cleared, ['CODEX_OAUTH_2'])
+  assert.deepEqual([...api.saved], [['CODEX_OAUTH_1', original]])
+})
+
+test('vault import refuses to write if any existing credential cannot be read', async () => {
+  const api = routes({ existing: { CODEX_OAUTH_1: { accessToken: 'original-slot-fixture' } }, unreadableRef: 'CODEX_OAUTH_2' })
+  const config = api.config()
+  const result = await api.send(twoSlotVault())
+  assert.equal(result.code, 400)
+  assert.equal(result.body.error.message, 'fixture credential could not be decrypted')
+  assert.equal(api.config(), config)
+  assert.deepEqual(api.writes, [])
+  assert.deepEqual(api.cleared, [])
 })

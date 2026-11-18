@@ -92,7 +92,8 @@ for (const enabled of [false, true]) {
     const { ctx, state } = fakeCtx()
     const config = configSnapshot({
       slots: [{ provider: 'claude', index: 1 }, { provider: 'cursor', index: 1 }],
-      cascadingFallback: enabled, cascadingChain: { claude: ['cursor'], cursor: ['claude'] },
+      ...(enabled ? { cascadingFallback: true } : {}),
+      cascadingChain: { claude: ['cursor'], cursor: ['claude'] },
       namespacedRoutes: true,
       ollamaFallback: false, probeIntervalMin: 0,
     })
@@ -110,7 +111,7 @@ for (const enabled of [false, true]) {
         { method: 'GET', headers: { host: 'localhost:3081', origin: 'http://localhost:3081', 'sec-fetch-site': 'same-origin' } },
         { writeHead() {}, end(body) { configBody = JSON.parse(body) } },
       )
-      assert.deepEqual(configBody.accounts.map(account => account.healthScore), [100, 100])
+      assert.deepEqual(configBody.accounts.map(account => account.healthScore), [null, null])
       const visited = []
       routed.adapter.deps.listAccounts = async (provider) => {
         visited.push(provider)

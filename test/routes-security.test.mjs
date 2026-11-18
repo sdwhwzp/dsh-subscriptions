@@ -36,10 +36,26 @@ const res = () => {
   return { get code() { return s.code }, set code(v) { s.code = v }, get body() { return s.body }, set body(v) { s.body = v }, writeHead(c) { s.code = c }, end(b) { s.body = b || '' }, setHeader() {} }
 }
 
+function loopbackGet(url) {
+  return { method: 'GET', url, headers: { host: 'localhost:3081' }, socket: { remoteAddress: '127.0.0.1' } }
+}
+
+test('proxy denies a remote peer with only same-origin metadata before forwarding', async () => {
+  const { proxy, requested } = harness()
+  const response = res()
+  await proxy.handler({
+    ...loopbackGet('/dsh-subscriptions/proxy/grok/v1/billing'),
+    headers: { host: 'localhost:3081', 'sec-fetch-site': 'same-origin' },
+    socket: { remoteAddress: '192.0.2.10' },
+  }, response)
+  assert.equal(response.code, 403)
+  assert.equal(requested.length, 0)
+})
+
 test('unknown provider is rejected with 404 before any request', async () => {
   const { proxy, requested } = harness()
   const r = res()
-  await proxy.handler({ method: 'GET', url: '/dsh-subscriptions/proxy/not-a-vendor/path', headers: { 'sec-fetch-site': 'same-origin' } }, r)
+  await proxy.handler(loopbackGet('/dsh-subscriptions/proxy/not-a-vendor/path'), r)
   assert.equal(r.code, 404)
   assert.equal(requested.length, 0)
 })
@@ -47,7 +63,7 @@ test('unknown provider is rejected with 404 before any request', async () => {
 test('dot-dot traversal is neutralized by URL normalization, never forwarded', async () => {
   const { proxy, requested } = harness()
   const r = res()
-  await proxy.handler({ method: 'GET', url: '/dsh-subscriptions/proxy/codex/../../admin/secret', headers: { 'sec-fetch-site': 'same-origin' } }, r)
+  await proxy.handler(loopbackGet('/dsh-subscriptions/proxy/codex/../../admin/secret'), r)
   assert.equal(r.code, 404, 'normalized path must not resolve to a valid provider')
   assert.equal(requested.length, 0)
 })
@@ -57,7 +73,7 @@ test('percent-encoded traversal is resolved by the URL parser and contained', as
   const r = res()
   // WHATWG URL resolves %2e%2e as a dot segment, so the normalized path
   // leaves no valid provider behind: the request is rejected, not forwarded.
-  await proxy.handler({ method: 'GET', url: '/dsh-subscriptions/proxy/codex/%2e%2e/other', headers: { 'sec-fetch-site': 'same-origin' } }, r)
+  await proxy.handler(loopbackGet('/dsh-subscriptions/proxy/codex/%2e%2e/other'), r)
   assert.equal(r.code, 404)
   assert.equal(requested.length, 0)
 })
@@ -65,7 +81,8 @@ test('percent-encoded traversal is resolved by the URL parser and contained', as
 test('a valid provider path is forwarded with the declared provider', async () => {
   const { proxy, requested } = harness()
   const r = res()
-  await proxy.handler({ method: 'GET', url: '/dsh-subscriptions/proxy/grok/v1/billing', headers: { 'sec-fetch-site': 'same-origin' } }, r)
+  await proxy.handler(loopbackGet('/dsh-subscriptions/proxy/grok/v1/billing'), r)
+  assert.equal(r.code, 200)
   assert.equal(requested.length, 1)
   assert.equal(requested[0].provider, 'grok')
   assert.equal(requested[0].path, '/v1/billing')
@@ -94,7 +111,10 @@ for (const headers of [
   test('cache analysis rejects untrusted requests before consuming the body: ' + JSON.stringify(headers), async () => {
     const { analyze } = harness()
     const response = res()
-    await analyze.handler({ method: 'POST', headers, [Symbol.asyncIterator]() { throw new Error('must not consume rejected body') } }, response)
+    await analyze.handler({
+      method: 'POST', headers, socket: { remoteAddress: '127.0.0.1' },
+      on() { assert.fail('Rejected request must not consume the body') },
+    }, response)
     assert.equal(response.code, 403)
   })
 }
@@ -104,6 +124,7 @@ test('cache analysis accepts a same-origin POST with token usage', async () => {
   const request = Readable.from([Buffer.from(JSON.stringify({ events: [{ usage: { inputTokens: 100, cacheReadTokens: 25, outputTokens: 10 } }] }))])
   request.method = 'POST'
   request.headers = { host: 'localhost:3081', origin: 'http://localhost:3081', 'sec-fetch-site': 'same-origin' }
+  request.socket = { remoteAddress: '127.0.0.1' }
   const response = res()
   await analyze.handler(request, response)
   assert.equal(response.code, 200)

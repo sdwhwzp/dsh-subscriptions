@@ -59,29 +59,41 @@ test('readBody propagates stream errors', async () => {
   await assert.rejects(() => readBody(req, 1024), /boom/)
 })
 
-test('settings require same-origin metadata or a verified loopback peer', () => {
-  assert.equal(isTrustedSettingsRequest({ headers: { 'sec-fetch-site': 'cross-site' } }), false)
-  assert.equal(isTrustedSettingsRequest({ headers: { 'sec-fetch-site': 'same-origin' } }), true)
-  assert.equal(isTrustedSettingsRequest({ headers: { 'sec-fetch-site': 'same-site' } }), true)
+test('settings require a verified peer or Host authorization', () => {
+  const socket = { remoteAddress: '127.0.0.1' }
+  const authorized = { connection: { requestRejection: () => undefined } }
+  const denied = { connection: { requestRejection: () => ({ status: 401 }) } }
+  const request = { method: 'GET', headers: { 'sec-fetch-site': 'same-origin' }, socket }
+  assert.equal(isTrustedSettingsRequest(request), true)
+  assert.equal(isTrustedSettingsRequest(request, denied), false)
+  assert.equal(isTrustedSettingsRequest({ ...request, method: 'POST' }), false)
+  assert.equal(isTrustedSettingsRequest({ headers: { 'sec-fetch-site': 'cross-site' }, socket }, authorized), false)
+  assert.equal(isTrustedSettingsRequest({ headers: { 'sec-fetch-site': 'same-origin' } }), false)
+  assert.equal(isTrustedSettingsRequest({ headers: { 'sec-fetch-site': 'same-site' } }), false)
   assert.equal(isTrustedSettingsRequest({ headers: {} }), false)
-  assert.equal(isTrustedSettingsRequest({ headers: {}, socket: { remoteAddress: '127.0.0.1' } }), true)
-  assert.equal(isTrustedSettingsRequest({ headers: {}, socket: { remoteAddress: '192.0.2.10' } }), false)
-  assert.equal(isTrustedSettingsRequest({ headers: { 'sec-fetch-site': 'same-origin', host: 'host.test', origin: 'https://other.test' } }), false)
+  const forwarded = { headers: { host: '127.0.0.1', 'sec-fetch-site': 'same-origin' }, socket: { remoteAddress: '192.0.2.10' } }
+  assert.equal(isTrustedSettingsRequest(forwarded), false)
+  assert.equal(isTrustedSettingsRequest(forwarded, authorized), true)
 })
 
-test('settings fallback checks Origin and Referer against the request host', () => {
+test('settings check Origin and Referer against the authorized request host', () => {
+  const ctx = { connection: { requestRejection: () => undefined } }
+  const socket = { remoteAddress: '192.0.2.10' }
   for (const field of ['origin', 'referer']) {
-    const good = { host: 'settings.example:3081', [field]: 'https://settings.example:3081/settings' }
-    assert.equal(isTrustedSettingsRequest({ headers: good }), true)
-    assert.equal(isTrustedSettingsRequest({ headers: { ...good, [field]: 'https://other.example/settings' } }), false)
-    assert.equal(isTrustedSettingsRequest({ headers: { ...good, [field]: 'invalid url' } }), false)
-    assert.equal(isTrustedSettingsRequest({ headers: { 'x-forwarded-host': good.host, [field]: good[field] } }), true)
+    const good = { host: 'settings.example:3081', [field]: 'https://settings.example:3081' + (field === 'referer' ? '/settings' : '') }
+    const trusted = (headers, target = ctx) => isTrustedSettingsRequest({ method: 'PUT', headers, socket }, target)
+    assert.equal(trusted(good), true)
+    assert.equal(trusted({ ...good, [field]: 'https://other.example' }), false)
+    assert.equal(trusted({ ...good, [field]: 'invalid url' }), false)
+    assert.equal(trusted({ 'x-forwarded-host': good.host, [field]: good[field] }), true)
+    assert.equal(trusted(good, {}), false)
   }
 })
 
 test('settings requests reject ambiguous host and Fetch Metadata headers', () => {
-  assert.equal(isTrustedSettingsRequest({ headers: { 'sec-fetch-site': ['same-origin', 'cross-site'] } }), false)
-  assert.equal(isTrustedSettingsRequest({ headers: { 'x-forwarded-host': ['settings.example', 'other.example'], origin: 'https://settings.example' } }), false)
+  const ctx = { connection: { requestRejection: () => undefined } }
+  assert.equal(isTrustedSettingsRequest({ headers: { 'sec-fetch-site': ['same-origin', 'cross-site'] } }, ctx), false)
+  assert.equal(isTrustedSettingsRequest({ headers: { 'x-forwarded-host': ['settings.example', 'other.example'], origin: 'https://settings.example' } }, ctx), false)
 })
 
 test('queryOf parses the query string and tolerates bad urls', () => {

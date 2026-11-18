@@ -2,8 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
-test('client bundle and lazy Chinese chunk have matching locale keys', () => {
-  const src = fs.readFileSync('lib/client.js', 'utf8')
+test('English and Chinese locale chunks have matching keys', () => {
+  const src = fs.readFileSync('lib/client.en.js', 'utf8')
   const chinese = fs.readFileSync('lib/client.zh.js', 'utf8')
   
   // Extract en and zh definitions

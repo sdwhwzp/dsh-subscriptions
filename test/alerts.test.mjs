@@ -17,12 +17,20 @@ test('quota alerts deduplicate within their window and keep expiration separate'
   } finally { clearAlerts() }
 })
 
-test('webhook delivery uses the injected transport and tolerates a failed receiver', async () => {
+test('webhook delivery pins the admitted address and tolerates a failed receiver', async (context) => {
+  const previousNoProxy = process.env.NO_PROXY
+  context.after(() => {
+    if (previousNoProxy === undefined) delete process.env.NO_PROXY
+    else process.env.NO_PROXY = previousNoProxy
+  })
+  process.env.NO_PROXY = 'alerts.example.invalid'
   const alert = { type: 'token_expired', ref: 'FIXTURE' }
-  const options = { lookupImpl: async () => [{ address: '203.0.113.10', family: 4 }], retries: 0 }
+  const options = { lookupImpl: async () => [{ address: '93.184.216.34', family: 4 }], retries: 0 }
   const ok = await dispatchWebhookAlert(alert, 'https://alerts.example.invalid/', async (url, init) => {
     assert.equal(url, 'https://alerts.example.invalid/')
     assert.equal(init.method, 'POST')
+    assert.equal(init.redirect, 'manual')
+    assert.ok(init.dispatcher)
     assert.deepEqual(JSON.parse(init.body).alert, alert)
     return { ok: true }
   }, options)

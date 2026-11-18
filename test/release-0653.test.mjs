@@ -7,6 +7,7 @@ import { normalizeExpiresAt, parseBlob, serializeBlob } from '../lib/blob.js'
 import { extractGoogleClientIdFromJwt } from '../lib/jwt.js'
 import { refresh } from '../lib/vendors/antigravity.js'
 import { createAccountStore } from '../lib/accounts.js'
+import { flushQuarantines } from '../lib/accounts-config.js'
 
 const clientId = '123-fixture.apps.googleusercontent.com'
 const jwt = payload => 'header.' + Buffer.from(JSON.stringify(payload)).toString('base64url') + '.signature'
@@ -50,12 +51,14 @@ function fixtureStore(t, credentials) {
   const home = mkdtempSync(join(tmpdir(), 'dsh-subscriptions-0653-'))
   const previous = process.env.DSH_HOME
   process.env.DSH_HOME = home
+  let store
   t.after(() => {
+    store?.dispose()
     if (previous === undefined) delete process.env.DSH_HOME
     else process.env.DSH_HOME = previous
     rmSync(home, { recursive: true, force: true })
   })
-  const store = createAccountStore({ credentials, getConfig: () => ({ slots: [{ provider: 'codex', index: 953 }] }), fetchImpl: async () => { throw new Error('unexpected network request') } })
+  store = createAccountStore({ credentials, getConfig: () => ({ slots: [{ provider: 'codex', index: 953 }] }), fetchImpl: async () => { throw new Error('unexpected network request') } })
   return { store, home }
 }
 
@@ -84,6 +87,7 @@ test('quarantine warmup preserves its persisted deadline while probing and backs
   const probing = store.probeWarmup(ref, async () => { started.resolve(); await release.promise; throw new Error('RATE_LIMIT') })
   await started.promise
   try {
+    flushQuarantines()
     const persisted = JSON.parse(readFileSync(join(home, 'subscriptions/quarantines.json'), 'utf8'))
     assert.equal(persisted[ref].until, expired)
     assert.equal(persisted[ref].status, 'probing')

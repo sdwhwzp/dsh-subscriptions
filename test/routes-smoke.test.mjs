@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { Readable } from 'node:stream'
 
 function minimalState() {
   const noop = async () => ({})
@@ -41,13 +42,16 @@ function fakeCtx() {
   return { ctx, routes }
 }
 
-const MODULES = ['status', 'oauth', 'accounts', 'proxy', 'vault']
+const MODULES = ['status', 'oauth', 'accounts', 'proxy', 'vault', 'sources', 'packs', 'webhook', 'metrics']
 
 function declaredPaths(name) {
   const source = file => readFileSync(new URL('../lib/routes/' + file + '.js', import.meta.url), 'utf8')
   let text = source(name)
   if (name === 'status') text += source('status-extras')
-  if (name === 'accounts') text += source('vault').split('export function registerVaultTransferRoutes')[1]
+  if (name === 'accounts') {
+    text += source('vault').split('export function registerVaultTransferRoutes')[1]
+    text += source('login') + source('presets')
+  }
   if (name === 'vault') text = text.split('export function registerVaultTransferRoutes')[0]
   return [...text.matchAll(/path: '(\/dsh-subscriptions[^']*)'/g)].map(match => match[1]).sort()
 }
@@ -84,6 +88,77 @@ test('status route handler is wired through safeJsonHandler', async () => {
   const { ctx, routes } = fakeCtx()
   mod.registerStatusRoutes(ctx, minimalState())
   assert.ok(routes.find((r) => r.path === '/dsh-subscriptions/status'))
+})
+
+function manage(routes, path, method = 'GET', payload) {
+  const request = Readable.from(payload === undefined ? [] : [Buffer.from(JSON.stringify(payload))])
+  request.method = method
+  request.headers = { host: 'localhost:3081', origin: 'http://localhost:3081' }
+  request.socket = { remoteAddress: '127.0.0.1' }
+  const result = {}
+  const route = routes.find(route => route.path === '/dsh-subscriptions/' + path)
+  return route.handler(request, {
+    writeHead(code) { result.code = code },
+    end(body) { result.body = JSON.parse(body) },
+  }).then(() => result).finally(() => request.destroy())
+}
+
+test('status and config redact fallback proxy passwords while masked settings round-trip', async () => {
+  const { registerStatusRoutes } = await import('../lib/routes/status.js')
+  const { ctx, routes } = fakeCtx()
+  const proxy = `https://fixture:${encodeURIComponent('pool fixture secret')}@pool.example`
+  const mask = '••••••'
+  const masked = `https://fixture:${mask}@pool.example`
+  let current = { slots: [], proxyPool: [proxy] }
+  const state = {
+    ...minimalState(),
+    live: () => current,
+    getSettingsApi: () => ({ async replace(next) { current = next } }),
+    store: { async loggedInProviders() { return [] } },
+    history: { recent: () => [] },
+  }
+  registerStatusRoutes(ctx, state)
+  const status = await manage(routes, 'status')
+  assert.equal(status.code, 200)
+  assert.deepEqual(status.body.proxyPool, [{ entry: masked, failures: 0, blockedUntil: 0, healthy: true }])
+  const read = await manage(routes, 'config')
+  assert.equal(read.code, 200)
+  assert.deepEqual(read.body.config.proxyPool, [masked])
+  const saved = await manage(routes, 'config', 'PUT', { revision: read.body.revision, config: read.body.config })
+  assert.equal(saved.code, 200)
+  assert.deepEqual(saved.body.config.proxyPool, [masked])
+  assert.deepEqual(current.proxyPool, [proxy])
+})
+
+test('partial config writes retain omitted slots and clear dropped credentials only with acknowledgement', async () => {
+  const { registerStatusRoutes } = await import('../lib/routes/status.js')
+  const { ctx, routes } = fakeCtx()
+  let current = { slots: [{ provider: 'codex', index: 1 }, { provider: 'claude', index: 2 }] }
+  const writes = []
+  const cleared = []
+  registerStatusRoutes(ctx, {
+    ...minimalState(),
+    live: () => current,
+    getSettingsApi: () => ({ async replace(next, revision) { current = next; writes.push(revision) } }),
+    stripLegacySlots: slots => slots,
+    store: { async clearRef(ref) { cleared.push(ref) } },
+  })
+
+  const partial = await manage(routes, 'config', 'PUT', { revision: 1, config: { codexFastMode: true }, dropCredentials: true })
+  assert.equal(partial.code, 200)
+  assert.equal(current.codexFastMode, true)
+  assert.deepEqual(current.slots.map(slot => slot.provider), ['codex', 'claude'])
+  assert.deepEqual(cleared, [])
+
+  const unacknowledged = await manage(routes, 'config', 'PUT', { revision: 2, slots: current.slots.slice(0, 1) })
+  assert.equal(unacknowledged.code, 200)
+  assert.deepEqual(cleared, [])
+
+  const acknowledged = await manage(routes, 'config', 'PUT', { revision: 3, config: { slots: [] }, dropCredentials: true })
+  assert.equal(acknowledged.code, 200)
+  assert.deepEqual(writes, [1, 2, 3])
+  assert.deepEqual(current.slots, [])
+  assert.deepEqual(cleared, ['CODEX_OAUTH_1'])
 })
 
 test('logout rejects non-POST with 405', async () => {

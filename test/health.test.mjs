@@ -7,9 +7,9 @@ import {
 } from "../lib/health.js"
 import { pickAccount } from "../lib/rotate.js"
 
-test("health score starts at 100", () => {
-  assert.equal(computeHealthScore(emptyHealth()), 100)
-  assert.equal(computeHealthScore(null), 100)
+test("unprobed accounts have no health score", () => {
+  assert.equal(computeHealthScore(emptyHealth()), null)
+  assert.equal(computeHealthScore(null), null)
 })
 
 test("penalties: switch 5, exhaust 10, broken 15", () => {
@@ -29,7 +29,7 @@ test("score never goes below 0", () => {
 })
 
 test("badge reflects score", () => {
-  assert.equal(healthBadge(null), "unknown")
+  assert.equal(healthBadge(null), "unprobed")
   assert.equal(healthBadge(90), "healthy")
   assert.equal(healthBadge(60), "tired")
   assert.equal(healthBadge(10), "broken")

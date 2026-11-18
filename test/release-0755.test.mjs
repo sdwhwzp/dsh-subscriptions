@@ -4,6 +4,7 @@ import { mergeClaudeCredentials } from '../lib/claude-keychain.js'
 import { referenceImageRequest } from '../lib/media-reference.js'
 import { isSecretLike, sanitizeSecrets } from '../lib/secret-scan.js'
 import { resolvePublicHostname } from '../lib/webhook-url.js'
+import { httpError } from '../lib/wire.js'
 
 test('Claude credential merge retains the newest valid token without accessing the keychain', () => {
   const current = { accessToken: 'current', refreshToken: 'refresh-one', expiresAt: 200 }
@@ -17,10 +18,10 @@ test('Claude credential merge retains the newest valid token without accessing t
 
 test('reference image requests validate duplicate refs and preserve provider payloads', () => {
   assert.deepEqual(referenceImageRequest('grok', { prompt: 'fixture', references: ['attachment-one'] }), {
-    model: 'grok-2-image', prompt: 'fixture', image_urls: ['attachment-one'],
+    model: 'grok-imagine-image-2.0', prompt: 'fixture', response_format: 'b64_json', image_urls: ['attachment-one'],
   })
   assert.deepEqual(referenceImageRequest('codex', { prompt: 'fixture', references: ['attachment-one'], size: '1024x1024' }), {
-    model: 'gpt-image-1', prompt: 'fixture', images: [{ image_url: 'attachment-one' }], size: '1024x1024',
+    model: 'gpt-image-2', prompt: 'fixture', images: [{ image_url: 'attachment-one' }], size: '1024x1024',
   })
   assert.throws(() => referenceImageRequest('grok', { references: ['duplicate', 'duplicate'] }), { code: 'INVALID_MEDIA_REFERENCE' })
 })
@@ -32,13 +33,24 @@ test('provider error redaction removes quoted JSON tokens and common header secr
     access_token: '[redacted]', refresh_token: '[redacted]',
   })
   assert.equal(sanitizeSecrets('Authorization: Bearer fixture-token-123'), 'Authorization: [redacted]')
+  const headers = JSON.stringify({ Authorization: 'Basic fixture-value', Cookie: 'session=fixture-one; other=fixture-two' })
+  const redactedHeaders = { Authorization: '[redacted]', Cookie: '[redacted]' }
+  assert.deepEqual(JSON.parse(sanitizeSecrets(headers)), redactedHeaders)
+  const quotedToken = JSON.stringify({ access_token: 'fixture "quoted" value, with whitespace' })
+  assert.deepEqual(JSON.parse(sanitizeSecrets(quotedToken)), { access_token: '[redacted]' })
+  assert.equal(sanitizeSecrets(sanitizeSecrets(headers)), sanitizeSecrets(headers))
+  const marker = 'opaque-test-value'
+  const oversized = JSON.stringify({ access_token: marker.repeat(40) })
+  const error = httpError(400, oversized)
+  assert.match(error.message, /\[redacted\]/)
+  assert.equal(error.message.includes(marker), false)
   assert.equal(isSecretLike('ordinary provider failure'), false)
 })
 
 test('webhook DNS admission requires a nonempty set of public addresses', async () => {
-  for (const records of [[], null, [{}], [{ address: '127.0.0.1' }], [{ address: '203.0.113.10' }, { address: '192.168.1.1' }]]) {
+  for (const records of [[], null, [{}], [{ address: '127.0.0.1' }], [{ address: '203.0.113.10' }], [{ address: '93.184.216.34' }, { address: '192.168.1.1' }]]) {
     assert.equal(await resolvePublicHostname('receiver.invalid', { lookupImpl: async () => records }), false)
   }
-  assert.equal(await resolvePublicHostname('receiver.invalid', { lookupImpl: async () => [{ address: '203.0.113.10' }] }), true)
+  assert.equal(await resolvePublicHostname('receiver.invalid', { lookupImpl: async () => [{ address: '93.184.216.34' }] }), true)
   assert.equal(await resolvePublicHostname('receiver.invalid', { lookupImpl: async () => { throw new Error('fixture DNS failure') } }), false)
 })
